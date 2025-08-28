@@ -1,0 +1,30 @@
+﻿<Window x:Class="GrafoWPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Grafo Interativo" Height="600" Width="800">
+
+    <!-- Canvas é o espaço onde o grafo será desenhado -->
+    <Grid>
+        <Canvas Name="GrafoCanvas" Background="OldLace"
+            MouseLeftButtonDown="Canvas_MouseLeftButtonDown"
+            MouseRightButtonDown="Canvas_MouseRightButtonDown"/>
+
+
+        <DockPanel VerticalAlignment="Bottom">
+            <!-- Área de verificação de adjacência -->
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Background="LightSkyBlue">
+                <TextBlock Text="Vértice 1:" VerticalAlignment="Center" Margin="5"/>
+                <TextBox Name="Vertice1TextBox" Width="60" Margin="5"/>
+                <TextBlock Text="Vértice 2:" VerticalAlignment="Center" Margin="5"/>
+                <TextBox Name="Vertice2TextBox" Width="60" Margin="5"/>
+                <Button Content="Verificar Adjacência" Click="VerificarAdjacencia_Click" Margin="5"/>
+                <Button Content="Gerar Árvore" Click="GerarArvore_Click" Margin="5" />
+            </StackPanel>
+
+            <!-- ListBox de mensagens -->
+            <ListBox Name="MensagensListBox"
+                     Height="150"
+                     Background="LightGray"/>
+        </DockPanel>
+    </Grid>
+</Window>
