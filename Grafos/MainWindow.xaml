@@ -1,30 +1,258 @@
 ﻿<Window x:Class="GrafoWPF.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Grafo Interativo" Height="600" Width="800">
+        Title="📊 Grafo Interativo - Editor Visual" Height="700" Width="1000"
+        WindowStartupLocation="CenterScreen"
+        Background="#F0F2F5">
 
-    <!-- Canvas é o espaço onde o grafo será desenhado -->
+    <Window.Resources>
+        <!-- Estilo para botões principais -->
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="#4A90E2"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#357ABD"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#2C5F8F"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Estilo para botões de análise -->
+        <Style x:Key="AnalysisButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="#7B68EE"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#6A5ACD"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Estilo para botões de algoritmo -->
+        <Style x:Key="AlgorithmButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="#32CD32"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#228B22"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Estilo para TextBox -->
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Background" Value="White"/>
+            <Style.Triggers>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#4A90E2"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Estilo para CheckBox -->
+        <Style x:Key="ModernCheckBox" TargetType="CheckBox">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Estilo para Labels -->
+        <Style x:Key="ModernLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </Window.Resources>
+
     <Grid>
-        <Canvas Name="GrafoCanvas" Background="OldLace"
-            MouseLeftButtonDown="Canvas_MouseLeftButtonDown"
-            MouseRightButtonDown="Canvas_MouseRightButtonDown"/>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="200"/>
+        </Grid.RowDefinitions>
 
-
-        <DockPanel VerticalAlignment="Bottom">
-            <!-- Área de verificação de adjacência -->
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Background="LightSkyBlue">
-                <TextBlock Text="Vértice 1:" VerticalAlignment="Center" Margin="5"/>
-                <TextBox Name="Vertice1TextBox" Width="60" Margin="5"/>
-                <TextBlock Text="Vértice 2:" VerticalAlignment="Center" Margin="5"/>
-                <TextBox Name="Vertice2TextBox" Width="60" Margin="5"/>
-                <Button Content="Verificar Adjacência" Click="VerificarAdjacencia_Click" Margin="5"/>
-                <Button Content="Gerar Árvore" Click="GerarArvore_Click" Margin="5" />
+        <!-- Header com título e instruções -->
+        <Border Grid.Row="0" Background="#2D3748" Padding="20,15">
+            <StackPanel>
+                <TextBlock Text="📊 Editor de Grafos Interativo" 
+                          FontSize="20" FontWeight="Bold" 
+                          Foreground="White" HorizontalAlignment="Center"/>
+                <TextBlock Text="🖱️ Clique esquerdo: Criar vértice ou conectar • Clique direito: Remover • Use as ferramentas abaixo para análise"
+                          FontSize="11" Foreground="#A0AEC0" 
+                          HorizontalAlignment="Center" Margin="0,5,0,0"/>
             </StackPanel>
+        </Border>
 
-            <!-- ListBox de mensagens -->
-            <ListBox Name="MensagensListBox"
-                     Height="150"
-                     Background="LightGray"/>
-        </DockPanel>
+        <!-- Painel de controles -->
+        <Border Grid.Row="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+            <Grid Margin="15,10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Primeira linha: Verificação de adjacência e configurações -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left">
+                    <Border Background="#EDF2F7" CornerRadius="8" Padding="15,10" Margin="0,0,20,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔍 Verificar Adjacência:" Style="{StaticResource ModernLabel}" Margin="0,0,10,0"/>
+                            <TextBox Name="Vertice1TextBox" Width="60" Style="{StaticResource ModernTextBox}" 
+                                    ToolTip="Digite o nome do primeiro vértice"/>
+                            <TextBlock Text="↔" Style="{StaticResource ModernLabel}" Margin="8,0"/>
+                            <TextBox Name="Vertice2TextBox" Width="60" Style="{StaticResource ModernTextBox}"
+                                    ToolTip="Digite o nome do segundo vértice"/>
+                            <Button Content="✓ Verificar" Click="VerificarAdjacencia_Click" 
+                                   Style="{StaticResource ModernButton}" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#FEF5E7" CornerRadius="8" Padding="15,10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚙️ Configurações:" Style="{StaticResource ModernLabel}" Margin="0,0,10,0"/>
+                            <CheckBox Content="🎯 Grafo Dirigido" 
+                                     Style="{StaticResource ModernCheckBox}"
+                                     Checked="Dirigido_Checked" 
+                                     Unchecked="Dirigido_Unchecked"
+                                     ToolTip="Marque para criar um grafo direcionado"/>
+                            <Button Content="🗑️ Limpar Grafo" Click="LimparGrafo_Click"
+Style="{StaticResource ModernButton}" Margin="20,0,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Segunda linha: Botões de análise e algoritmos -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,10,0,0">
+                    <Border Background="#F0F9FF" CornerRadius="8" Padding="10" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📋 Análises:" Style="{StaticResource ModernLabel}" Margin="0,0,10,0"/>
+                            <Button Content="📊 Matriz Adjacência" Click="MatrizAdjacencia_Click" 
+                                   Style="{StaticResource AnalysisButton}"/>
+                            <Button Content="📈 Matriz Incidência" Click="MatrizIncidencia_Click" 
+                                   Style="{StaticResource AnalysisButton}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#F0FDF4" CornerRadius="8" Padding="10" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔬 Algoritmos:" Style="{StaticResource ModernLabel}" Margin="0,0,10,0"/>
+                            <Button Content="🌳 Gerar Árvore" Click="GerarArvore_Click" 
+                                   Style="{StaticResource AlgorithmButton}"/>
+                            <Button Content="🔍 BFS" Click="ExecutarBFS_Click" 
+                                   Style="{StaticResource AlgorithmButton}"/>
+                            <Button Content="🎯 DFS" Click="ExecutarDFS_Click" 
+                                   Style="{StaticResource AlgorithmButton}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Canvas principal -->
+        <Border Grid.Row="2" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Margin="10">
+            <Grid>
+                <Canvas Name="GrafoCanvas" 
+                       MouseLeftButtonDown="Canvas_MouseLeftButtonDown"
+                       MouseRightButtonDown="Canvas_MouseRightButtonDown"
+                       ClipToBounds="True">
+                    <!-- Padrão de grade sutil -->
+                    <Canvas.Background>
+                        <DrawingBrush TileMode="Tile" Viewport="0,0,20,20" ViewportUnits="Absolute">
+                            <DrawingBrush.Drawing>
+                                <GeometryDrawing>
+                                    <GeometryDrawing.Geometry>
+                                        <RectangleGeometry Rect="0,0,20,20"/>
+                                    </GeometryDrawing.Geometry>
+                                    <GeometryDrawing.Pen>
+                                        <Pen Brush="#F1F5F9" Thickness="0.5"/>
+                                    </GeometryDrawing.Pen>
+                                    <GeometryDrawing.Brush>
+                                        <SolidColorBrush Color="#FAFAFA"/>
+                                    </GeometryDrawing.Brush>
+                                </GeometryDrawing>
+                            </DrawingBrush.Drawing>
+                        </DrawingBrush>
+                    </Canvas.Background>
+                </Canvas>
+
+                <!-- Legenda no canto superior direito -->
+                <Border HorizontalAlignment="Right" VerticalAlignment="Top" 
+                       Background="White" BorderBrush="#D1D5DB" BorderThickness="1"
+                       CornerRadius="6" Margin="15" Padding="12" Opacity="0.95">
+                    <StackPanel>
+                        <TextBlock Text="📖 Legenda:" FontWeight="Bold" FontSize="12" Margin="0,0,0,8"/>
+                        <TextBlock Text="🔵 Vértices (azul claro)" FontSize="10" Margin="0,2"/>
+                        <TextBlock Text="⚫ Arestas (preto)" FontSize="10" Margin="0,2"/>
+                        <TextBlock Text="🟢 Árvore Geradora (verde)" FontSize="10" Margin="0,2"/>
+                        <TextBlock Text="🟠 BFS (laranja)" FontSize="10" Margin="0,2"/>
+                        <TextBlock Text="🔷 DFS (azul)" FontSize="10" Margin="0,2"/>
+                        <TextBlock Text="🟣 Dijkstra (roxo)" FontSize="10" Margin="0,2"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Painel de mensagens/log -->
+        <Border Grid.Row="3" Background="White" BorderBrush="#E2E8F0" BorderThickness="1,0,1,1" Margin="10,0,10,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header do log -->
+                <Border Grid.Row="0" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="15,8">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="📝 Log de Atividades" FontWeight="SemiBold" FontSize="13" Foreground="#374151"/>
+                        <Button Content="🗑️ Limpar" HorizontalAlignment="Right" 
+                               Background="Transparent" BorderThickness="0" 
+                               Foreground="#6B7280" FontSize="11" Padding="8,4"
+                               Cursor="Hand" Click="LimparLog_Click"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Lista de mensagens -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="15,10">
+                    <ListBox Name="MensagensListBox"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Padding" Value="5,3"/>
+                                <Setter Property="Margin" Value="0,1"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#F3F4F6"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" TextWrapping="Wrap" 
+                                          FontFamily="Consolas" FontSize="11"
+                                          Foreground="#4B5563"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </ScrollViewer>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
