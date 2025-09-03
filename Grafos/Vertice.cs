@@ -4,7 +4,7 @@ using System.Windows;
 
 namespace GrafoWPF
 {
-    // cada vértice tem um nome, posição e lista de adjacência
+    // Cada vértice tem um nome, posição e lista de adjacência
     public class Vertice
     {
         public string Nome { get; set; } // nome do vértice

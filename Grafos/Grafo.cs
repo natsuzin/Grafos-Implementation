@@ -6,6 +6,7 @@ using System.Windows;
 
 namespace GrafoWPF
 {
+    // Representa um grafo com vértices e arestas/arcos
     public class Grafo
     {
         // Lista principal: cada posição é um vértice

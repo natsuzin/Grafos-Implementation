@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace GrafoWPF
 {
-    // cada aresta conecta dois vértices, tem um peso e um nome
+    // Cada aresta conecta dois vértices, tem um peso e um nome
     public class Aresta
     {
         public Vertice Origem { get; set; } // vértice de origem
