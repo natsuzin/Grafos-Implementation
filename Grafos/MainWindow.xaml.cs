@@ -44,6 +44,8 @@ namespace GrafoWPF
 
             if (grafo.Vertices.Count == 0) return;
 
+            DirecaoCheckBox.IsEnabled = !(grafo.Vertices.Count > 1);
+
             AdicionarMensagem($"Lista de adjacência atualizada:\n{grafo.ListarAdjacencias()}");
 
             // para evitar desenhar arestas duplicadas em grafos não-dirigidos
@@ -469,7 +471,9 @@ namespace GrafoWPF
                 return;
             }
 
-            int[,] matriz = grafo.GerarMatrizIncidencia();
+            var dadosIncidencia = grafo.GerarMatrizIncidencia();
+            int[,] matriz = dadosIncidencia.matriz;
+            var arestas = dadosIncidencia.arestas;
             var sb = new System.Text.StringBuilder();
 
             sb.AppendLine("MATRIZ DE INCIDÊNCIA");
@@ -479,9 +483,9 @@ namespace GrafoWPF
 
             // cabeçalho com números das arestas
             sb.Append("     ");
-            for (int j = 0; j < numArestas; j++)
+            foreach (var aresta in arestas)
             {
-                sb.Append($"E{j + 1,3}");
+                sb.Append($"{aresta.Nome}");
             }
             sb.AppendLine();
 
@@ -491,7 +495,9 @@ namespace GrafoWPF
                 sb.Append($"{grafo.Vertices[i].Nome,3}: ");
                 for (int j = 0; j < numArestas; j++)
                 {
-                    sb.Append($"{matriz[i, j],4}");
+                    var resultado = $"  {matriz[i, j]} ";
+                    if (matriz[i, j] >= 0) resultado += " "; // para alinhar números positivos
+                        sb.Append(resultado);
                 }
                 sb.AppendLine();
             }
@@ -565,6 +571,7 @@ namespace GrafoWPF
             verticeSelecionado = null;   // Reseta seleção
             GrafoCanvas.Children.Clear(); // Limpa visual do canvas
             MensagensListBox.Items.Clear(); // Limpa o log
+            DirecaoCheckBox.IsEnabled = true; // Reabilita checkbox de direção 
 
             AdicionarMensagem("Grafo completamente limpo!");
         }

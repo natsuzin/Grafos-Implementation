@@ -295,12 +295,11 @@ namespace GrafoWPF
             return matriz;
         }
 
-        //TODO: realizar as devidas correções na geração da matriz de incidência (alguns valores parecem estar incorretos)
         /*
          * ===== MATRIZES DE INCIDÊNCIA =====
          * A matriz de incidência é uma representação do grafo onde uma matriz 2D é usada para indicar a relação entre vértices e arestas.
          */
-        public int[,] GerarMatrizIncidencia()
+        public (int[,] matriz, List<Aresta> arestas) GerarMatrizIncidencia()
         {
             var arestas = new List<Aresta>();
 
@@ -315,7 +314,7 @@ namespace GrafoWPF
                             Origem = v,
                             Destino = vizinho,
                             Peso = peso,
-                            Nome = $"{v.Nome}-{vizinho.Nome}"
+                            Nome = $"({v.Nome.Replace("V", "")},{vizinho.Nome.Replace("V", "")})"
                         });
                     }
                 }
@@ -328,11 +327,10 @@ namespace GrafoWPF
                 var a = arestas[j];
                 int iOrigem = Vertices.IndexOf(a.Origem);
                 int iDestino = Vertices.IndexOf(a.Destino);
-
                 if (Dirigido)
                 {
-                    matriz[iOrigem, j] = -1; // saída
-                    matriz[iDestino, j] = 1; // entrada
+                    matriz[iOrigem, j] = 1; // saída
+                    matriz[iDestino, j] = -1; // entrada
                 }
                 else
                 {
@@ -341,7 +339,7 @@ namespace GrafoWPF
                 }
             }
 
-            return matriz;
+            return (matriz, arestas);
         }
     }
 }

@@ -123,7 +123,8 @@
                     <Border Background="#FEF5E7" CornerRadius="8" Padding="15,10">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="⚙️ Configurações:" Style="{StaticResource ModernLabel}" Margin="0,0,10,0"/>
-                            <CheckBox Content="🎯 Grafo Dirigido" 
+                            <CheckBox x:Name="DirecaoCheckBox" 
+                                     Content="🎯 Grafo Dirigido" 
                                      Style="{StaticResource ModernCheckBox}"
                                      Checked="Dirigido_Checked" 
                                      Unchecked="Dirigido_Unchecked"
