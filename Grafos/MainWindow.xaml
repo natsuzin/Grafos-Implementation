@@ -156,6 +156,8 @@ Style="{StaticResource ModernButton}" Margin="20,0,0,0"/>
                                    Style="{StaticResource AlgorithmButton}"/>
                             <Button Content="🎯 DFS" Click="ExecutarDFS_Click" 
                                    Style="{StaticResource AlgorithmButton}"/>
+                            <Button Content="🧔‍♂️ Roy" Click="ExecutarRoy_Click" 
+                                   Style="{StaticResource AlgorithmButton}"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

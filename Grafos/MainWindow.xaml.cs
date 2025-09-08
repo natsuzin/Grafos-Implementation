@@ -556,6 +556,31 @@ namespace GrafoWPF
 
             AdicionarMensagem($"Busca em Profundidade (DFS) executada a partir de {origem.Nome} - {arvore.Count} arestas na árvore");
         }
+        
+        // Executa Alrogitmo de Roy
+        private void ExecutarRoy_Click(object sender, RoutedEventArgs e)
+        {
+            var totalVertices = grafo.Vertices.Count;
+            if (totalVertices == 0)
+            {
+                AdicionarMensagem("Grafo vazio - não é possível executar Roy.");
+                return;
+            }
+
+            var resultado = grafo.Roy();
+            var collors = new List<Brush> { Brushes.Pink, Brushes.Aquamarine, Brushes.Gray, Brushes.Beige, Brushes.Olive };
+            AdicionarMensagem(resultado.mensagem);
+            foreach (var componente in resultado.componentes)
+            {
+                AdicionarMensagem($"Componente {resultado.componentes.IndexOf(componente) + 1}: {string.Join(", ", componente.Select(a => a.Nome))}");
+                var collorIndex = collors.Count - 1;
+                foreach (var aresta in componente)
+                {
+                    DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, collors[collorIndex], 4);
+                }
+                collors.RemoveAt(collorIndex);
+            }
+        }
 
         // Limpa o log de mensagens
         private void LimparLog_Click(object sender, RoutedEventArgs e)
