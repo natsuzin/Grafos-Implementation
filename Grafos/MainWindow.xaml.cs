@@ -420,24 +420,29 @@ namespace GrafoWPF
             else
             {
                 // se grafo dirigido, usa Dijkstra
-                var raiz = grafo.Vertices[0];
-                var arvore = grafo.GerarArvoreCaminhosMinimos(raiz);
-                if (arvore.Count == 0)
+                var raiz = EscolherVerticeValido();
+                if (raiz == null)
                 {
-                    AdicionarMensagem("Não foi possível gerar árvore de caminhos mínimos (vértices inalcançáveis).");
+                    AdicionarMensagem("Nenhum vértice possui caminhos para percorrer (grafo dirigido isolado).");
                     return;
                 }
 
-                int pesoTotal = 0;
+                var (arvore, inalcançaveis) = grafo.GerarArvoreCaminhosMinimos(raiz);
 
-                // desenha arestas da árvore em roxo
-                foreach (var aresta in arvore)
+                if (arvore.Count == 0)
                 {
-                    DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Purple, 4);
-                    pesoTotal += aresta.Peso;
+                    AdicionarMensagem("Não foi possível gerar árvore de caminhos mínimos (nenhum vértice alcançável).");
+                    return;
                 }
 
-                AdicionarMensagem($"rvore de Caminhos Mínimos (Dijkstra) de {raiz.Nome} gerada! Peso total: {pesoTotal}");
+                foreach (var aresta in arvore)
+                    DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Purple, 4);
+
+                if (inalcançaveis.Count > 0)
+                    AdicionarMensagem($"Alguns vértices não foram alcançáveis a partir de {raiz.Nome}: {string.Join(", ", inalcançaveis.Select(v => v.Nome))}");
+                else
+                    AdicionarMensagem($"Árvore de Caminhos Mínimos (Dijkstra) de {raiz.Nome} gerada com sucesso!");
+
             }
         }
 
@@ -530,7 +535,13 @@ namespace GrafoWPF
                 return;
             }
 
-            var origem = grafo.Vertices[0];
+            var origem = EscolherVerticeValido();
+            if (origem == null)
+            {
+                AdicionarMensagem("Nenhum vértice possui caminhos para percorrer (grafo dirigido isolado).");
+                return;
+            }
+
             var arvore = grafo.BuscaLargura(origem);
 
             if (arvore.Count == 0)
@@ -556,7 +567,13 @@ namespace GrafoWPF
                 return;
             }
 
-            var origem = grafo.Vertices[0];
+            var origem = EscolherVerticeValido();
+            if (origem == null)
+            {
+                AdicionarMensagem("Nenhum vértice possui caminhos para percorrer (grafo dirigido isolado).");
+                return;
+            }
+
             var arvore = grafo.BuscaProfundidade(origem);
 
             if (arvore.Count == 0)
@@ -572,7 +589,7 @@ namespace GrafoWPF
 
             AdicionarMensagem($"Busca em Profundidade (DFS) executada a partir de {origem.Nome} - {arvore.Count} arestas na árvore");
         }
-        
+
         // Executa Alrogitmo de Roy
         private void ExecutarRoy_Click(object sender, RoutedEventArgs e)
         {
@@ -584,11 +601,25 @@ namespace GrafoWPF
             }
 
             var resultado = grafo.Roy();
-            var collors = new List<Brush> { Brushes.Pink, Brushes.Aquamarine, Brushes.Gray, Brushes.Beige, Brushes.Olive };
-            AdicionarMensagem(resultado.mensagem);
-            foreach (var componente in resultado.componentes)
+
+            // se não houver componentes
+            if (resultado.componentes.Count == 0 && string.IsNullOrWhiteSpace(resultado.mensagem))
             {
-                AdicionarMensagem($"Componente {resultado.componentes.IndexOf(componente) + 1}: {string.Join(", ", componente.Select(a => a.Nome))}");
+                AdicionarMensagem("Não foi encontrada nenhuma componente conexa ou fortemente conexa.");
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(resultado.mensagem))
+                AdicionarMensagem(resultado.mensagem);
+
+            var collors = new List<Brush> { Brushes.Pink, Brushes.Aquamarine, Brushes.Gray, Brushes.Beige, Brushes.Olive };
+
+            for (int i = 0; i < resultado.componentes.Count; i++)
+            {
+                var componente = resultado.componentes[i];
+                AdicionarMensagem($"Componente {i + 1}: {string.Join(", ", componente.Select(a => a.Nome))}");
+
+                // escolhe cor
                 var collorIndex = collors.Count - 1;
                 foreach (var aresta in componente)
                 {
@@ -596,6 +627,17 @@ namespace GrafoWPF
                 }
                 collors.RemoveAt(collorIndex);
             }
+        }
+
+        // Retorna o primeiro vértice que tenha pelo menos uma aresta de saída
+        private Vertice EscolherVerticeValido()
+        {
+            foreach (var v in grafo.Vertices)
+            {
+                if (v.Adjacentes.Count > 0)
+                    return v; // primeiro vértice que pode percorrer
+            }
+            return null; // nenhum vértice válido encontrado
         }
 
         // Limpa o log de mensagens

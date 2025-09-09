@@ -141,48 +141,61 @@ namespace GrafoWPF
          * Utilizado em grafos dirigidos ou não dirigidos e ponderados.
          * É usado para encontrar o caminho mais curto de um vértice de origem para todos os outros vértices em um grafo ponderado.
          */
-        public List<Aresta> GerarArvoreCaminhosMinimos(Vertice origem)
+        public (List<Aresta> arvore, List<Vertice> inalcançaveis) GerarArvoreCaminhosMinimos(Vertice origem)
         {
-            var dist = new Dictionary<Vertice, int>(); // guarda a menor distância conhecida de origem a cada vértice
-            var anterior = new Dictionary<Vertice, Vertice>(); // guarda o vértice anterior no caminho mais curto
-            var pendentes = new HashSet<Vertice>(Vertices); // conjunto de vértices não processados
-
+            var dist = new Dictionary<Vertice, int>();
+            var anterior = new Dictionary<Vertice, Vertice>();
+            var pendentes = new HashSet<Vertice>(Vertices);
 
             foreach (var v in Vertices)
-                dist[v] = int.MaxValue; // inicializa todas as distâncias como infinito
-            dist[origem] = 0; // ponto de partida
+                dist[v] = int.MaxValue;
+
+            dist[origem] = 0;
 
             while (pendentes.Count > 0)
             {
-                var menor = pendentes.OrderBy(v => dist[v]).First(); // pega vértice com menor distância
-                pendentes.Remove(menor); // remove dos pendentes
+                // pega o vértice não processado com menor distância
+                var atual = pendentes.OrderBy(v => dist[v]).First();
+                pendentes.Remove(atual);
 
-                foreach (var (vizinho, peso) in menor.Adjacentes)
+                // Se a distância ainda for infinita, os vértices restantes são inalcançáveis
+                if (dist[atual] == int.MaxValue)
+                    break;
+
+                foreach (var (vizinho, peso) in atual.Adjacentes)
                 {
-                    int alt = dist[menor] + peso; // calcula distância para o vizinho passsando pelo menor
-                    if (alt < dist[vizinho]) // se alt for menor, atualiza
+                    // aqui garante que só seguimos a direção da seta
+                    int alt = dist[atual] + peso;
+                    if (alt < dist[vizinho])
                     {
                         dist[vizinho] = alt;
-                        anterior[vizinho] = menor;
+                        anterior[vizinho] = atual;
                     }
                 }
             }
 
-            // construção da árvore de caminhos mínimos
+            // monta a árvore de caminhos mínimos
             var resultado = new List<Aresta>();
             foreach (var kv in anterior)
             {
+                var u = kv.Value;
+                var v = kv.Key;
+                var aresta = u.Adjacentes.First(a => a.vizinho == v);
                 resultado.Add(new Aresta
                 {
-                    Origem = kv.Value,
-                    Destino = kv.Key,
-                    Peso = kv.Value.Adjacentes.First(a => a.vizinho == kv.Key).peso,
-                    Nome = $"{kv.Value.Nome}->{kv.Key.Nome}"
+                    Origem = u,
+                    Destino = v,
+                    Peso = aresta.peso,
+                    Nome = $"{u.Nome}->{v.Nome}"
                 });
             }
 
-            return resultado;
+            // verifica vértices inalcançáveis
+            var inalcançaveis = Vertices.Where(v => dist[v] == int.MaxValue && v != origem).ToList();
+
+            return (resultado, inalcançaveis);
         }
+
 
         /*
         * ===== BUSCA POR LARGURA =====
@@ -264,16 +277,15 @@ namespace GrafoWPF
 
         /*
         *   ===== ALGORITMO DE ROY =====
-        *   Este algoritmo encontra as componentesfortemente conexas de um grafo G dirigido através das relações de vizinhança
+        *   Este algoritmo encontra as componentes conexas e fortemente conexas de um grafo G dirigido através das relações de vizinhança
         */
-
         public (List<List<Aresta>> componentes, String mensagem) Roy()
         {
             List<List<Aresta>> componentes = new List<List<Aresta>>(); //Armazena componentes fortemente conexas
             String mensagem = "";
 
             //Função recursiva do algoritmo de Roy
-            void Roydopiando(List<Vertice> vertices)
+            void algoritmoRoy(List<Vertice> vertices)
             {
                 if (vertices.Count == 0 || vertices == null) return;
                 var v = vertices[0];
@@ -347,11 +359,11 @@ namespace GrafoWPF
                 }
                 //Separa vertices restantes e Roydopia(Inicia nova iteração)
                 vertices = vertices.Except(verticesComponente).ToList();
-                Roydopiando(vertices);
+                algoritmoRoy(vertices);
             }
             
             //Inicializa algoritmo de Roy
-            Roydopiando(Vertices);
+            algoritmoRoy(Vertices);
 
             return (componentes, mensagem);
         }
@@ -404,7 +416,7 @@ namespace GrafoWPF
                             Origem = v,
                             Destino = vizinho,
                             Peso = peso,
-                            Nome = $"({v.Nome.Replace("V", "")},{vizinho.Nome.Replace("V", "")})"
+                            Nome = $"{v.Nome}-{vizinho.Nome}"
                         });
                     }
                 }
