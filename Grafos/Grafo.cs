@@ -263,6 +263,100 @@ namespace GrafoWPF
         }
 
         /*
+        *   ===== ALGORITMO DE ROY =====
+        *   Este algoritmo encontra as componentesfortemente conexas de um grafo G dirigido através das relações de vizinhança
+        */
+
+        public (List<List<Aresta>> componentes, String mensagem) Roy()
+        {
+            List<List<Aresta>> componentes = new List<List<Aresta>>(); //Armazena componentes fortemente conexas
+            String mensagem = "";
+
+            //Função recursiva do algoritmo de Roy
+            void Roydopiando(List<Vertice> vertices)
+            {
+                if (vertices.Count == 0 || vertices == null) return;
+                var v = vertices[0];
+                var positivos = new List<Vertice>();
+                var negativos = new List<Vertice>();
+                var verticesComponente = new List<Vertice>();
+                var componente = new List<Aresta>();
+
+                //Função recursiva para marcar vertices positivos
+                void MarcarPositivos(Vertice vp)
+                {
+                    //Caso vertice já esteja marcado ignore
+                    if (positivos.Contains(vp)) return;
+                    positivos.Add(vp);
+                    //Vasculha Vertices do Grafo
+                    foreach (var vg in vertices)
+                    {
+                        //Se vertice vasculhado já estiver marcado ignora
+                        if (positivos.Contains(vg)) continue;
+                        vg.Adjacentes.ForEach(adj =>
+                        {
+                            //Se vertice vasculhado tiver sucessor positivo então marca vertice como positivo
+                            if (positivos.Contains(adj.vizinho)) MarcarPositivos(vg);
+                        });
+                    }
+                }
+
+                //Função recursiva para marcar vertices negativos
+                void MarcarNegativos(Vertice vn)
+                {
+                    //Caso vertice já esteja marcado ignore
+                    if (negativos.Contains(vn)) return;
+                    negativos.Add(vn);
+                    //Após marcar vertice negativo varre seus sucessores e os marca
+                    vn.Adjacentes.ForEach(viz => MarcarNegativos(viz.vizinho));
+                }
+
+                //Marca vertices a partir do inicial
+                MarcarPositivos(v);
+                MarcarNegativos(v);
+
+                //Separa vertices do componente
+                verticesComponente = positivos.Intersect(negativos).ToList();
+                foreach (var vc in verticesComponente)
+                {
+                    foreach (var (vizinho, peso) in vc.Adjacentes)
+                    {
+                        if (verticesComponente.Contains(vizinho))
+                        {
+                            //Garante não repetição de arestas
+                            if (!Dirigido && vc.Nome.CompareTo(vizinho.Nome) > 0)
+                                continue;
+                            //Cria arestas do componente
+                            componente.Add(new Aresta
+                            {
+                                Origem = vc,
+                                Destino = vizinho,
+                                Peso = peso,
+                                Nome = $"{vc.Nome}-{vizinho.Nome}"
+                            });
+                        }
+                    }
+                }
+                //Se o componente tiver ao menos 3 vertices então é guardado
+                if (componente.Count > 2)
+                {
+                    if (verticesComponente.Count == Vertices.Count)
+                        mensagem = Dirigido ? "Grafo Fortemente Conexo" : "Grafo Conexo";
+                    //Guarda arestas do componente
+                    componentes.Add(componente);
+                }
+                //Separa vertices restantes e Roydopia(Inicia nova iteração)
+                vertices = vertices.Except(verticesComponente).ToList();
+                Roydopiando(vertices);
+            }
+            
+            //Inicializa algoritmo de Roy
+            Roydopiando(Vertices);
+
+            return (componentes, mensagem);
+        }
+
+        /*
          * ===== MATRIZES DE ADJACÊNCIA =====
          * A matriz ed adjacencia é uma representação do grafo onde uma matriz 2D é usada para indicar a presença e o peso das arestas entre os vértices.
          */
@@ -291,12 +385,11 @@ namespace GrafoWPF
             return matriz;
         }
 
-        //TODO: realizar as devidas correções na geração da matriz de incidência (alguns valores parecem estar incorretos)
         /*
          * ===== MATRIZES DE INCIDÊNCIA =====
          * A matriz de incidência é uma representação do grafo onde uma matriz 2D é usada para indicar a relação entre vértices e arestas.
          */
-        public int[,] GerarMatrizIncidencia()
+        public (int[,] matriz, List<Aresta> arestas) GerarMatrizIncidencia()
         {
             var arestas = new List<Aresta>();
 
@@ -311,7 +404,7 @@ namespace GrafoWPF
                             Origem = v,
                             Destino = vizinho,
                             Peso = peso,
-                            Nome = $"{v.Nome}-{vizinho.Nome}"
+                            Nome = $"({v.Nome.Replace("V", "")},{vizinho.Nome.Replace("V", "")})"
                         });
                     }
                 }
@@ -324,11 +417,10 @@ namespace GrafoWPF
                 var a = arestas[j];
                 int iOrigem = Vertices.IndexOf(a.Origem);
                 int iDestino = Vertices.IndexOf(a.Destino);
-
                 if (Dirigido)
                 {
-                    matriz[iOrigem, j] = -1; // saída
-                    matriz[iDestino, j] = 1; // entrada
+                    matriz[iOrigem, j] = 1; // saída
+                    matriz[iDestino, j] = -1; // entrada
                 }
                 else
                 {
@@ -337,7 +429,7 @@ namespace GrafoWPF
                 }
             }
 
-            return matriz;
+            return (matriz, arestas);
         }
     }
 }

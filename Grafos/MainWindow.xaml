@@ -123,7 +123,8 @@
                     <Border Background="#FEF5E7" CornerRadius="8" Padding="15,10">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="⚙️ Configurações:" Style="{StaticResource ModernLabel}" Margin="0,0,10,0"/>
-                            <CheckBox Content="🎯 Grafo Dirigido" 
+                            <CheckBox x:Name="DirecaoCheckBox" 
+                                     Content="🎯 Grafo Dirigido" 
                                      Style="{StaticResource ModernCheckBox}"
                                      Checked="Dirigido_Checked" 
                                      Unchecked="Dirigido_Unchecked"
@@ -154,6 +155,8 @@
                             <Button Content="🔍 BFS" Click="ExecutarBFS_Click" 
                                    Style="{StaticResource AlgorithmButton}"/>
                             <Button Content="🎯 DFS" Click="ExecutarDFS_Click" 
+                                   Style="{StaticResource AlgorithmButton}"/>
+                            <Button Content="🧔‍♂️ Roy" Click="ExecutarRoy_Click" 
                                    Style="{StaticResource AlgorithmButton}"/>
                         </StackPanel>
                     </Border>

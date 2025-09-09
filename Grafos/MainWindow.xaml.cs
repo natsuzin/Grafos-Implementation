@@ -44,6 +44,8 @@ namespace GrafoWPF
 
             if (grafo.Vertices.Count == 0) return;
 
+            DirecaoCheckBox.IsEnabled = !(grafo.Vertices.Count > 1);
+
             AdicionarMensagem($"Lista de adjacência atualizada:\n{grafo.ListarAdjacencias()}");
 
             // para evitar desenhar arestas duplicadas em grafos não-dirigidos
@@ -485,7 +487,9 @@ namespace GrafoWPF
                 return;
             }
 
-            int[,] matriz = grafo.GerarMatrizIncidencia();
+            var dadosIncidencia = grafo.GerarMatrizIncidencia();
+            int[,] matriz = dadosIncidencia.matriz;
+            var arestas = dadosIncidencia.arestas;
             var sb = new System.Text.StringBuilder();
 
             sb.AppendLine("MATRIZ DE INCIDÊNCIA");
@@ -495,9 +499,9 @@ namespace GrafoWPF
 
             // cabeçalho com números das arestas
             sb.Append("     ");
-            for (int j = 0; j < numArestas; j++)
+            foreach (var aresta in arestas)
             {
-                sb.Append($"E{j + 1,3}");
+                sb.Append($"{aresta.Nome}");
             }
             sb.AppendLine();
 
@@ -507,7 +511,9 @@ namespace GrafoWPF
                 sb.Append($"{grafo.Vertices[i].Nome,3}: ");
                 for (int j = 0; j < numArestas; j++)
                 {
-                    sb.Append($"{matriz[i, j],4}");
+                    var resultado = $"  {matriz[i, j]} ";
+                    if (matriz[i, j] >= 0) resultado += " "; // para alinhar números positivos
+                        sb.Append(resultado);
                 }
                 sb.AppendLine();
             }
@@ -566,6 +572,31 @@ namespace GrafoWPF
 
             AdicionarMensagem($"Busca em Profundidade (DFS) executada a partir de {origem.Nome} - {arvore.Count} arestas na árvore");
         }
+        
+        // Executa Alrogitmo de Roy
+        private void ExecutarRoy_Click(object sender, RoutedEventArgs e)
+        {
+            var totalVertices = grafo.Vertices.Count;
+            if (totalVertices == 0)
+            {
+                AdicionarMensagem("Grafo vazio - não é possível executar Roy.");
+                return;
+            }
+
+            var resultado = grafo.Roy();
+            var collors = new List<Brush> { Brushes.Pink, Brushes.Aquamarine, Brushes.Gray, Brushes.Beige, Brushes.Olive };
+            AdicionarMensagem(resultado.mensagem);
+            foreach (var componente in resultado.componentes)
+            {
+                AdicionarMensagem($"Componente {resultado.componentes.IndexOf(componente) + 1}: {string.Join(", ", componente.Select(a => a.Nome))}");
+                var collorIndex = collors.Count - 1;
+                foreach (var aresta in componente)
+                {
+                    DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, collors[collorIndex], 4);
+                }
+                collors.RemoveAt(collorIndex);
+            }
+        }
 
         // Limpa o log de mensagens
         private void LimparLog_Click(object sender, RoutedEventArgs e)
@@ -581,6 +612,7 @@ namespace GrafoWPF
             verticeSelecionado = null;   // Reseta seleção
             GrafoCanvas.Children.Clear(); // Limpa visual do canvas
             MensagensListBox.Items.Clear(); // Limpa o log
+            DirecaoCheckBox.IsEnabled = true; // Reabilita checkbox de direção 
 
             AdicionarMensagem("Grafo completamente limpo!");
         }
