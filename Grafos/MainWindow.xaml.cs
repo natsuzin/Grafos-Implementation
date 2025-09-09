@@ -245,17 +245,26 @@ namespace GrafoWPF
                         {
                             verticeSelecionado.Adjacentes.Add((v, peso)); // adiciona aresta
 
+                            string nomeA = $"{verticeSelecionado.Nome}-{v.Nome}";
+
                             // se não for dirigido, adiciona a conexão inversa
                             if (!grafo.Dirigido)
                             {
                                 v.Adjacentes.Add((verticeSelecionado, peso));
+                                AdicionarMensagem($"Aresta {nomeA} criada com peso {peso}");
                             }
-                            AdicionarMensagem($"Aresta criada entre {verticeSelecionado.Nome} e {v.Nome} com peso {peso}");
+                            else
+                            {
+                                AdicionarMensagem($"Arco {nomeA} criado com peso {peso}");
+                            }
+                            
                         }
                         else
                         {
-                            AdicionarMensagem($"Conexão entre {verticeSelecionado.Nome} e {v.Nome} já existe!");
+                            string nomeAresta = $"{verticeSelecionado.Nome}-{v.Nome}";
+                            AdicionarMensagem($"Essa conexão já existe!");
                         }
+
 
                         DesenharGrafo();
                         verticeSelecionado = null;
@@ -331,16 +340,23 @@ namespace GrafoWPF
                     if (EstaPertoDaLinha(v.Posicao, viz.vizinho.Posicao, pos, 8))
                     {
                         v.Adjacentes.RemoveAt(i);
+                        string nomeA = $"{v.Nome}-{viz.vizinho.Nome}";
                         if (!grafo.Dirigido)
                         {
                             viz.vizinho.Adjacentes.RemoveAll(a => a.vizinho == v);
+                            AdicionarMensagem($"Aresta {nomeA} removida");
                         }
-                        AdicionarMensagem($"Aresta entre {v.Nome} e {viz.vizinho.Nome} removida");
+                        else
+                        {
+                            AdicionarMensagem($"Arco {nomeA} removido");
+                        }
+
                         DesenharGrafo();
                         return;
                     }
                 }
             }
+
         }
 
         // Verifica se dois vértices são adjacentes

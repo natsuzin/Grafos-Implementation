@@ -129,7 +129,7 @@
                                      Unchecked="Dirigido_Unchecked"
                                      ToolTip="Marque para criar um grafo direcionado"/>
                             <Button Content="🗑️ Limpar Grafo" Click="LimparGrafo_Click"
-Style="{StaticResource ModernButton}" Margin="20,0,0,0"/>
+                                    Style="{StaticResource ModernButton}" Margin="20,0,0,0"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

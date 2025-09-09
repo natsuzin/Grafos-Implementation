@@ -19,26 +19,26 @@ namespace GrafoWPF
          */
         public string ListarAdjacencias()
         {
-            var sb = new StringBuilder(); // StringBuilder para construir a string de saída
-            foreach (var v in Vertices) // para cada vértice na lista de vértices
+            var sb = new StringBuilder();
+            foreach (var v in Vertices)
             {
-                sb.Append($"{v.Nome} → "); // adiciona o nome do vértice atual
-                if (v.Adjacentes.Count == 0) // se não tem adjacentes
+                sb.Append($"{v.Nome} → ");
+                if (v.Adjacentes.Count == 0)
                 {
-                    sb.Append(" (isolado)"); // indica que está isolado
+                    sb.Append("(isolado)");
                 }
                 else
                 {
-                    foreach (var (vizinho, peso) in v.Adjacentes) // para cada vizinho na lista de adjacência
+                    foreach (var (vizinho, peso) in v.Adjacentes)
                     {
-                        sb.Append($"{vizinho.Nome}({peso}) "); // adiciona o nome do vizinho e o peso da aresta
+                        sb.Append($"{vizinho.Nome}({peso}) ");
                     }
                 }
                 sb.AppendLine();
             }
             return sb.ToString();
         }
-
+        
         // Verifica se dois vértices são adjacentes
         public bool SaoAdjacentes(string v1Nome, string v2Nome)
         {
@@ -89,8 +89,6 @@ namespace GrafoWPF
 
             visitados.Add(inicial); // pega o vértice inicial
 
-            int contadorAresta = 1;
-
             // roda pela lista de adjacência do vértice inicial
             foreach (var (vizinho, peso) in inicial.Adjacentes)
             {
@@ -102,7 +100,6 @@ namespace GrafoWPF
                     Peso = peso,
                     Nome = $"{inicial.Nome}-{vizinho.Nome}" 
                 });
-                contadorAresta++; // Incrementa para a próxima aresta
             }
 
             // crescimento da árvore
@@ -133,7 +130,6 @@ namespace GrafoWPF
                             Peso = peso,
                             Nome = $"{inicial.Nome}-{vizinho.Nome}"
                         });
-                        contadorAresta++; // Incrementa para a próxima aresta
                     }
                 }
             }
