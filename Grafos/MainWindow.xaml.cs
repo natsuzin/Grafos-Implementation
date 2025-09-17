@@ -14,10 +14,12 @@ namespace GrafoWPF
     {
         private Grafo grafo = new Grafo(); // instância do grafo
         private Vertice verticeSelecionado = null; // para criar arestas
+        private List<UIElement> caminhosDestacados = new List<UIElement>(); // guarda referências aos elementos temporários (caminhos desenhados)
 
         public MainWindow()
         {
             InitializeComponent();
+
         }
 
         // Adiciona mensagem ao log com timestamp
@@ -58,7 +60,7 @@ namespace GrafoWPF
                 {
                     if (!desenhadas.Contains((vizinho, v)))
                     {
-                        DesenharAresta(v, vizinho, peso, Brushes.Black, 2);
+                        DesenharAresta(v, vizinho, peso, Brushes.Black, 2, false);
                         desenhadas.Add((v, vizinho));
                     }
                 }
@@ -114,9 +116,9 @@ namespace GrafoWPF
         }
 
         // Desenha uma aresta entre dois vértices com peso e estilo
-        private void DesenharAresta(Vertice origem, Vertice destino, int peso, Brush cor, double espessura)
+        private void DesenharAresta(Vertice origem, Vertice destino, int peso, Brush cor, double espessura, bool caminhoTemporario = false)
         {
-            // desenha linha
+            // linha
             var linha = new Line
             {
                 X1 = origem.Posicao.X,
@@ -126,15 +128,20 @@ namespace GrafoWPF
                 Stroke = cor,
                 StrokeThickness = espessura
             };
+            if (caminhoTemporario)
+            {
+                linha.Tag = "temp";
+                caminhosDestacados.Add(linha);
+            }
             GrafoCanvas.Children.Add(linha);
 
-            // desenha arco se for dirigido
+            // seta (se for dirigido)
             if (grafo.Dirigido)
             {
-                DesenharArco(origem.Posicao, destino.Posicao, cor);
+                DesenharArco(origem.Posicao, destino.Posicao, cor, caminhoTemporario);
             }
 
-            // desenha peso
+            // peso
             var txtPeso = new TextBlock
             {
                 Text = peso.ToString(),
@@ -145,31 +152,30 @@ namespace GrafoWPF
             };
             Canvas.SetLeft(txtPeso, (origem.Posicao.X + destino.Posicao.X) / 2 - 5);
             Canvas.SetTop(txtPeso, (origem.Posicao.Y + destino.Posicao.Y) / 2 - 8);
+
+            if (caminhoTemporario)
+            {
+                txtPeso.Tag = "temp";
+                caminhosDestacados.Add(txtPeso);
+            }
             GrafoCanvas.Children.Add(txtPeso);
         }
 
         // Desenha uma seta para indicar direção do arco
-        private void DesenharArco(Point origem, Point destino, Brush cor)
+        private Polygon DesenharArco(Point origem, Point destino, Brush cor, bool caminhoTemporario = false)
         {
-            // calcula direção da linha
             double dx = destino.X - origem.X;
             double dy = destino.Y - origem.Y;
             double comprimento = Math.Sqrt(dx * dx + dy * dy);
-
-            if (comprimento == 0) return;
+            if (comprimento == 0) return null;
 
             dx /= comprimento;
             dy /= comprimento;
 
-            // ponto final da seta, um pouco antes do destino
             double offset = 20;
-            Point pontoFinal = new Point(
-                destino.X - dx * offset,
-                destino.Y - dy * offset
-            );
-
-            // pontos laterais da seta
+            Point pontoFinal = new Point(destino.X - dx * offset, destino.Y - dy * offset);
             double tamanhoSeta = 8;
+
             Point p1 = new Point(
                 pontoFinal.X - dy * tamanhoSeta - dx * tamanhoSeta,
                 pontoFinal.Y + dx * tamanhoSeta - dy * tamanhoSeta
@@ -179,15 +185,24 @@ namespace GrafoWPF
                 pontoFinal.Y - dx * tamanhoSeta - dy * tamanhoSeta
             );
 
-            // cria triângulo da seta
             var seta = new Polygon
             {
                 Points = new PointCollection { pontoFinal, p1, p2 },
                 Fill = cor,
                 Stroke = cor
             };
+
+            if (caminhoTemporario)
+            {
+                seta.Tag = "temp";
+                caminhosDestacados.Add(seta);
+            }
+
             GrafoCanvas.Children.Add(seta);
+            return seta;
         }
+
+
 
         // verifica se o ponto 'clique' está perto da linha entre p1 e p2
         private bool EstaPertoDaLinha(Point p1, Point p2, Point clique, double tolerancia)
@@ -411,7 +426,7 @@ namespace GrafoWPF
                 // desenha arestas da árvore em verde
                 foreach (var aresta in mst)
                 {
-                    DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Green, 4);
+                    DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Green, 4, true);
                     pesoTotal += aresta.Peso;
                 }
 
@@ -436,7 +451,7 @@ namespace GrafoWPF
                 }
 
                 foreach (var aresta in arvore)
-                    DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Purple, 4);
+                    DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Purple, 4, true);
 
                 if (inalcançaveis.Count > 0)
                     AdicionarMensagem($"Alguns vértices não foram alcançáveis a partir de {raiz.Nome}: {string.Join(", ", inalcançaveis.Select(v => v.Nome))}");
@@ -526,6 +541,7 @@ namespace GrafoWPF
             AdicionarMensagem(sb.ToString());
         }
 
+
         // Executa busca em largura (BFS) e destaca a árvore resultante
         private void ExecutarBFS_Click(object sender, RoutedEventArgs e)
         {
@@ -535,10 +551,19 @@ namespace GrafoWPF
                 return;
             }
 
-            var origem = EscolherVerticeValido();
+            // Pergunta qual vértice deve ser a origem da busca
+            string input = Interaction.InputBox("Digite o nome do vértice inicial para BFS:", "Vértice inicial", "");
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                AdicionarMensagem("BFS cancelada - nenhum vértice especificado.");
+                return;
+            }
+
+            // Procura o vértice especificado
+            var origem = grafo.Vertices.FirstOrDefault(v => v.Nome.Equals(input.Trim(), StringComparison.OrdinalIgnoreCase));
             if (origem == null)
             {
-                AdicionarMensagem("Nenhum vértice possui caminhos para percorrer (grafo dirigido isolado).");
+                AdicionarMensagem($"Vértice '{input}' não encontrado no grafo. Vértices disponíveis: {string.Join(", ", grafo.Vertices.Select(v => v.Nome))}");
                 return;
             }
 
@@ -552,10 +577,10 @@ namespace GrafoWPF
 
             foreach (var aresta in arvore)
             {
-                DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Orange, 4);
+                DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Orange, 4, true);
             }
 
-            AdicionarMensagem($"Busca em Largura (BFS) executada a partir de {origem.Nome} - {arvore.Count} arestas na árvore");
+            AdicionarMensagem($"Busca em Largura (BFS) executada a partir de {origem.Nome}.");
         }
 
         // Executa busca em profundidade (DFS) e destaca a árvore resultante
@@ -567,10 +592,19 @@ namespace GrafoWPF
                 return;
             }
 
-            var origem = EscolherVerticeValido();
+            // Pergunta qual vértice deve ser a origem da busca
+            string input = Interaction.InputBox("Digite o nome do vértice inicial para DFS:", "Vértice inicial", "");
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                AdicionarMensagem("DFS cancelada - nenhum vértice especificado.");
+                return;
+            }
+
+            // Procura o vértice especificado
+            var origem = grafo.Vertices.FirstOrDefault(v => v.Nome.Equals(input.Trim(), StringComparison.OrdinalIgnoreCase));
             if (origem == null)
             {
-                AdicionarMensagem("Nenhum vértice possui caminhos para percorrer (grafo dirigido isolado).");
+                AdicionarMensagem($"Vértice '{input}' não encontrado no grafo. Vértices disponíveis: {string.Join(", ", grafo.Vertices.Select(v => v.Nome))}.");
                 return;
             }
 
@@ -584,49 +618,105 @@ namespace GrafoWPF
 
             foreach (var aresta in arvore)
             {
-                DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Blue, 4);
+                DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Blue, 4, true);
             }
 
-            AdicionarMensagem($"Busca em Profundidade (DFS) executada a partir de {origem.Nome} - {arvore.Count} arestas na árvore");
+            AdicionarMensagem($"Busca em Profundidade (DFS) executada a partir de {origem.Nome}.");
         }
 
-        // Executa Alrogitmo de Roy
+        // Executa Algoritmo de Roy
         private void ExecutarRoy_Click(object sender, RoutedEventArgs e)
         {
             var totalVertices = grafo.Vertices.Count;
             if (totalVertices == 0)
             {
-                AdicionarMensagem("Grafo vazio - não é possível executar Roy.");
+                AdicionarMensagem("Grafo vazio - não é possível executar algoritmo de Roy.");
                 return;
             }
 
             var resultado = grafo.Roy();
 
-            // se não houver componentes
-            if (resultado.componentes.Count == 0 && string.IsNullOrWhiteSpace(resultado.mensagem))
+            // Exibe mensagem sobre conectividade geral do grafo
+            if (!string.IsNullOrWhiteSpace(resultado.mensagem))
             {
-                AdicionarMensagem("Não foi encontrada nenhuma componente conexa ou fortemente conexa.");
+                AdicionarMensagem(resultado.mensagem);
+            }
+
+            // Se não houver componentes, significa que há apenas vértices isolados
+            if (resultado.componentes.Count == 0)
+            {
+                if (string.IsNullOrWhiteSpace(resultado.mensagem))
+                {
+                    AdicionarMensagem("Não foram encontradas componentes conexas. O grafo contém apenas vértices isolados.");
+                }
                 return;
             }
 
-            if (!string.IsNullOrWhiteSpace(resultado.mensagem))
-                AdicionarMensagem(resultado.mensagem);
+            // Cores disponíveis para destacar componentes diferentes
+            var cores = new List<Brush> { Brushes.Red, Brushes.Pink };
+            int corIndex = 0;
 
-            var collors = new List<Brush> { Brushes.Pink, Brushes.Aquamarine, Brushes.Gray, Brushes.Beige, Brushes.Olive };
-
+            // Processa cada componente encontrada
             for (int i = 0; i < resultado.componentes.Count; i++)
             {
                 var componente = resultado.componentes[i];
-                AdicionarMensagem($"Componente {i + 1}: {string.Join(", ", componente.Select(a => a.Nome))}");
 
-                // escolhe cor
-                var collorIndex = collors.Count - 1;
+                // Identifica os vértices únicos da componente
+                var verticesDaComponente = new HashSet<string>();
                 foreach (var aresta in componente)
                 {
-                    DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, collors[collorIndex], 4);
+                    verticesDaComponente.Add(aresta.Origem.Nome);
+                    verticesDaComponente.Add(aresta.Destino.Nome);
                 }
-                collors.RemoveAt(collorIndex);
+
+                string tipoComponente = grafo.Dirigido ? "fortemente conexa" : "conexa";
+                AdicionarMensagem($"Componente {tipoComponente} {i + 1}: " +
+                                 $"Vértices [{string.Join(", ", verticesDaComponente.OrderBy(v => v))}]");
+
+                // Desenha as arestas da componente com cor específica
+                Brush corAtual = cores[corIndex % cores.Count];
+                foreach (var aresta in componente)
+                {
+                    DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, corAtual, 4, true);
+                }
+
+                corIndex++;
             }
+
+            // Resumo final
+            string resumo = grafo.Dirigido ?
+                $"Análise de Roy concluída: {resultado.componentes.Count} componente(s) fortemente conexa(s) encontrada(s)" :
+                $"Análise de Roy concluída: {resultado.componentes.Count} componente(s) conexa(s) encontrada(s)";
+
+            AdicionarMensagem(resumo);
+        }
+
+        private void LimparCaminhos_Click(object sender, RoutedEventArgs e)
+        {
+            int removed = 0;
+
+            // tenta remover pelos elementos que guardamos
+            foreach (var elem in caminhosDestacados.ToList())
+            {
+                if (GrafoCanvas.Children.Contains(elem))
+                {
+                    GrafoCanvas.Children.Remove(elem);
+                    removed++;
+                }
+            }
+            caminhosDestacados.Clear();
+
+            // fallback: remove qualquer filho marcado com Tag == "temp" (caso algo tenha saído da lista)
+            for (int i = GrafoCanvas.Children.Count - 1; i >= 0; i--)
+            {
+                if (GrafoCanvas.Children[i] is FrameworkElement fe && fe.Tag != null && fe.Tag.ToString() == "temp")
+                {
+                    GrafoCanvas.Children.RemoveAt(i);
+                    removed++;
+                }
+            }
+
+            AdicionarMensagem($"Limpeza de caminhos executada.");
         }
 
         // Retorna o primeiro vértice que tenha pelo menos uma aresta de saída
@@ -663,7 +753,8 @@ namespace GrafoWPF
         private void Dirigido_Checked(object sender, RoutedEventArgs e)
         {
             grafo.Dirigido = true;
-            AdicionarMensagem("Modo dirigido ativado");
+            AdicionarMensagem("Modo dirigido ativado (DIJKSTRA)");
+            GerarArvoreButton.Content = "🌳 Gerar Árvore DIJKSTRA";
             DesenharGrafo();
         }
 
@@ -671,8 +762,10 @@ namespace GrafoWPF
         private void Dirigido_Unchecked(object sender, RoutedEventArgs e)
         {
             grafo.Dirigido = false;
-            AdicionarMensagem("Modo não-dirigido ativado");
+            AdicionarMensagem("Modo não-dirigido ativado (PRIM)");
+            GerarArvoreButton.Content = "🌳 Gerar Árvore PRIM";
             DesenharGrafo();
         }
+
     }
 }

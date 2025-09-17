@@ -276,94 +276,122 @@ namespace GrafoWPF
         }
 
         /*
-        *   ===== ALGORITMO DE ROY =====
-        *   Este algoritmo encontra as componentes conexas e fortemente conexas de um grafo G dirigido através das relações de vizinhança
+        *   ===== ALGORITMO DE ROY CORRIGIDO =====
+        *   Este algoritmo encontra as componentes fortemente conexas de um grafo dirigido
+        *   através das relações de alcançabilidade (sucessores e antecessores)
         */
         public (List<List<Aresta>> componentes, String mensagem) Roy()
         {
-            List<List<Aresta>> componentes = new List<List<Aresta>>(); //Armazena componentes fortemente conexas
+            List<List<Aresta>> componentes = new List<List<Aresta>>();
             String mensagem = "";
 
-            //Função recursiva do algoritmo de Roy
+            // Função recursiva do algoritmo de Roy
             void algoritmoRoy(List<Vertice> vertices)
             {
                 if (vertices.Count == 0 || vertices == null) return;
-                var v = vertices[0];
-                var positivos = new List<Vertice>();
-                var negativos = new List<Vertice>();
+
+                var v = vertices[0]; // Vértice inicial
+                var sucessores = new HashSet<Vertice>(); // Vértices alcançáveis a partir de v
+                var antecessores = new HashSet<Vertice>(); // Vértices que podem alcançar v
                 var verticesComponente = new List<Vertice>();
                 var componente = new List<Aresta>();
 
-                //Função recursiva para marcar vertices positivos
-                void MarcarPositivos(Vertice vp)
+                // Função para encontrar todos os sucessores de um vértice (busca em profundidade)
+                void EncontrarSucessores(Vertice vp, HashSet<Vertice> visitados)
                 {
-                    //Caso vertice já esteja marcado ignore
-                    if (positivos.Contains(vp)) return;
-                    positivos.Add(vp);
-                    //Vasculha Vertices do Grafo
-                    foreach (var vg in vertices)
+                    if (visitados.Contains(vp)) return;
+                    visitados.Add(vp);
+                    sucessores.Add(vp);
+
+                    // Explora todos os vizinhos diretos
+                    foreach (var (vizinho, peso) in vp.Adjacentes)
                     {
-                        //Se vertice vasculhado já estiver marcado ignora
-                        if (positivos.Contains(vg)) continue;
-                        vg.Adjacentes.ForEach(adj =>
+                        if (!visitados.Contains(vizinho))
                         {
-                            //Se vertice vasculhado tiver sucessor positivo então marca vertice como positivo
-                            if (positivos.Contains(adj.vizinho)) MarcarPositivos(vg);
-                        });
+                            EncontrarSucessores(vizinho, visitados);
+                        }
                     }
                 }
 
-                //Função recursiva para marcar vertices negativos
-                void MarcarNegativos(Vertice vn)
+                // Função para encontrar todos os antecessores de um vértice
+                void EncontrarAntecessores(Vertice vn)
                 {
-                    //Caso vertice já esteja marcado ignore
-                    if (negativos.Contains(vn)) return;
-                    negativos.Add(vn);
-                    //Após marcar vertice negativo varre seus sucessores e os marca
-                    vn.Adjacentes.ForEach(viz => MarcarNegativos(viz.vizinho));
+                    antecessores.Add(vn);
+
+                    // Procura por todos os vértices que têm vn como vizinho
+                    foreach (var vertice in vertices)
+                    {
+                        if (!antecessores.Contains(vertice))
+                        {
+                            // Verifica se este vértice tem uma aresta para vn
+                            if (vertice.Adjacentes.Any(adj => adj.vizinho == vn))
+                            {
+                                EncontrarAntecessores(vertice);
+                            }
+                        }
+                    }
                 }
 
-                //Marca vertices a partir do inicial
-                MarcarPositivos(v);
-                MarcarNegativos(v);
+                // Encontra sucessores a partir de v
+                EncontrarSucessores(v, new HashSet<Vertice>());
 
-                //Separa vertices do componente
-                verticesComponente = positivos.Intersect(negativos).ToList();
+                // Encontra antecessores de v
+                EncontrarAntecessores(v);
+
+                // A componente fortemente conexa é a interseção entre sucessores e antecessores
+                verticesComponente = sucessores.Intersect(antecessores).ToList();
+
+                // Cria as arestas do componente
                 foreach (var vc in verticesComponente)
                 {
                     foreach (var (vizinho, peso) in vc.Adjacentes)
                     {
                         if (verticesComponente.Contains(vizinho))
                         {
-                            //Garante não repetição de arestas
+                            // Para grafos não dirigidos, evita arestas duplicadas
                             if (!Dirigido && vc.Nome.CompareTo(vizinho.Nome) > 0)
                                 continue;
-                            //Cria arestas do componente
+
+                            // Cria arestas do componente
                             componente.Add(new Aresta
                             {
                                 Origem = vc,
                                 Destino = vizinho,
                                 Peso = peso,
-                                Nome = $"{vc.Nome}-{vizinho.Nome}"
+                                Nome = Dirigido ? $"{vc.Nome}->{vizinho.Nome}" : $"{vc.Nome}-{vizinho.Nome}"
                             });
                         }
                     }
                 }
-                //Se o componente tiver ao menos 3 vertices então é guardado
-                if (componente.Count > 2)
+
+                // Só adiciona componentes com mais de um vértice ou pelo menos uma aresta
+                if (verticesComponente.Count > 1 || componente.Count > 0)
                 {
+                    // Verifica se o grafo é fortemente conexo (todos os vértices estão na mesma componente)
                     if (verticesComponente.Count == Vertices.Count)
+                    {
                         mensagem = Dirigido ? "Grafo Fortemente Conexo" : "Grafo Conexo";
-                    //Guarda arestas do componente
+                    }
+
                     componentes.Add(componente);
                 }
-                //Separa vertices restantes e Roydopia(Inicia nova iteração)
+
+                // Remove os vértices já processados e continua com os restantes
                 vertices = vertices.Except(verticesComponente).ToList();
                 algoritmoRoy(vertices);
             }
-            
-            //Inicializa algoritmo de Roy
-            algoritmoRoy(Vertices);
+
+            // Cria uma cópia da lista de vértices para não modificar a original
+            var verticesCopia = new List<Vertice>(Vertices);
+
+            // Inicializa algoritmo de Roy
+            algoritmoRoy(verticesCopia);
+
+            // Se não encontrou nenhuma componente, mas há vértices, significa que são vértices isolados
+            if (componentes.Count == 0 && Vertices.Count > 0)
+            {
+                mensagem = "Grafo contém apenas vértices isolados (sem arestas)";
+            }
 
             return (componentes, mensagem);
         }
