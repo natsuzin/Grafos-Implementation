@@ -15,12 +15,37 @@ namespace GrafoWPF
         private Grafo grafo = new Grafo(); // instância do grafo
         private Vertice verticeSelecionado = null; // para criar arestas
         private List<UIElement> caminhosDestacados = new List<UIElement>(); // guarda referências aos elementos temporários (caminhos desenhados)
+        private Dictionary<Vertice, int> coloracaoAtual = null;
 
         public MainWindow()
         {
             InitializeComponent();
 
         }
+
+        private readonly Brush[] coresDisponiveis = new Brush[]
+        {
+            Brushes.Red,
+            Brushes.Green,
+            Brushes.Blue,
+            Brushes.Yellow,
+            Brushes.Orange,
+            Brushes.Purple,
+            Brushes.Pink,
+            Brushes.Cyan,
+            Brushes.Lime,
+            Brushes.Magenta,
+            Brushes.Brown,
+            Brushes.Navy,
+            Brushes.Teal,
+            Brushes.Olive,
+            Brushes.Maroon,
+            Brushes.Aqua,
+            Brushes.Fuchsia,
+            Brushes.Silver,
+            Brushes.Gold,
+            Brushes.Coral
+        };
 
         // Adiciona mensagem ao log com timestamp
         private void AdicionarMensagem(string mensagem)
@@ -76,12 +101,22 @@ namespace GrafoWPF
         // Desenha um vértice como círculo com nome
         private void DesenharVertice(Vertice vertice)
         {
+            // Determina a cor do vértice baseada na coloração atual
+            Brush corVertice = Brushes.LightBlue;
+
+            if (coloracaoAtual != null && coloracaoAtual.ContainsKey(vertice))
+            {
+                int indiceCor = coloracaoAtual[vertice];
+                corVertice = coresDisponiveis[indiceCor % coresDisponiveis.Length];
+            }
+
             // desenha círculo
             var elipse = new Ellipse
             {
                 Width = 35,
                 Height = 35,
-                Fill = Brushes.LightBlue,
+                Fill = corVertice,
+                Stroke = Brushes.Black,
                 StrokeThickness = vertice == verticeSelecionado ? 4 : 2,
                 Cursor = Cursors.Hand
             };
@@ -201,8 +236,6 @@ namespace GrafoWPF
             GrafoCanvas.Children.Add(seta);
             return seta;
         }
-
-
 
         // verifica se o ponto 'clique' está perto da linha entre p1 e p2
         private bool EstaPertoDaLinha(Point p1, Point p2, Point clique, double tolerancia)
@@ -691,6 +724,39 @@ namespace GrafoWPF
             AdicionarMensagem(resumo);
         }
 
+        private void ExecutarWelshPowell_Click(object sender, RoutedEventArgs e)
+        {
+            if (grafo.Vertices.Count == 0)
+            {
+                AdicionarMensagem("Grafo vazio - não é possível executar coloração.");
+                return;
+            }
+
+            if (grafo.Vertices.Count == 1)
+            {
+                AdicionarMensagem("Grafo com apenas 1 vértice - coloração trivial (1 cor).");
+                return;
+            }
+
+            // Executa o algoritmo de Welsh-Powell
+            coloracaoAtual = grafo.ColoracaoWelshPowell();
+
+            if (coloracaoAtual.Count == 0)
+            {
+                AdicionarMensagem("Erro ao executar coloração de Welsh-Powell.");
+                return;
+            }
+
+            // Redesenha o grafo com as cores
+            DesenharGrafo();
+
+            // Exibe estatísticas da coloração
+            string estatisticas = grafo.ObterEstatisticasColoracao(coloracaoAtual);
+            AdicionarMensagem(estatisticas);
+
+            int numeroCores = coloracaoAtual.Values.Distinct().Count();
+            AdicionarMensagem($"✓ Coloração aplicada com sucesso! Número cromático: {numeroCores}");
+        }
         private void LimparCaminhos_Click(object sender, RoutedEventArgs e)
         {
             int removed = 0;
@@ -706,7 +772,7 @@ namespace GrafoWPF
             }
             caminhosDestacados.Clear();
 
-            // fallback: remove qualquer filho marcado com Tag == "temp" (caso algo tenha saído da lista)
+            // fallback: remove qualquer filho marcado com Tag == "temp"
             for (int i = GrafoCanvas.Children.Count - 1; i >= 0; i--)
             {
                 if (GrafoCanvas.Children[i] is FrameworkElement fe && fe.Tag != null && fe.Tag.ToString() == "temp")
@@ -714,6 +780,14 @@ namespace GrafoWPF
                     GrafoCanvas.Children.RemoveAt(i);
                     removed++;
                 }
+            }
+
+            // Limpa a coloração
+            if (coloracaoAtual != null)
+            {
+                coloracaoAtual = null;
+                DesenharGrafo();
+                AdicionarMensagem("Coloração removida.");
             }
 
             AdicionarMensagem($"Limpeza de caminhos executada.");
@@ -754,7 +828,7 @@ namespace GrafoWPF
         {
             grafo.Dirigido = true;
             AdicionarMensagem("Modo dirigido ativado (DIJKSTRA)");
-            GerarArvoreButton.Content = "🌳 Gerar Árvore DIJKSTRA";
+            GerarArvoreButton.Content = "🌳 DIJKSTRA";
             DesenharGrafo();
         }
 
@@ -763,7 +837,7 @@ namespace GrafoWPF
         {
             grafo.Dirigido = false;
             AdicionarMensagem("Modo não-dirigido ativado (PRIM)");
-            GerarArvoreButton.Content = "🌳 Gerar Árvore PRIM";
+            GerarArvoreButton.Content = "🌳 PRIM";
             DesenharGrafo();
         }
 

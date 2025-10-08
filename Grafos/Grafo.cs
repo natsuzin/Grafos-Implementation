@@ -397,6 +397,108 @@ namespace GrafoWPF
         }
 
         /*
+ * ===== ALGORITMO DE WELSH-POWELL =====
+ * Algoritmo guloso para coloração de vértices em grafos.
+ * Objetivo: Atribuir cores aos vértices de modo que vértices adjacentes tenham cores diferentes,
+ * usando o menor número possível de cores.
+ * 
+ * Estratégia:
+ * 1. Ordena os vértices por grau (número de adjacências) em ordem decrescente
+ * 2. Atribui a primeira cor disponível ao vértice de maior grau
+ * 3. Para cada vértice seguinte, atribui a menor cor que não conflita com seus vizinhos
+ */
+        public Dictionary<Vertice, int> ColoracaoWelshPowell()
+        {
+            var coloracao = new Dictionary<Vertice, int>();
+
+            if (Vertices.Count == 0) return coloracao;
+
+            // Passo 1: Ordena vértices por grau (número de adjacências) em ordem decrescente
+            var verticesOrdenados = Vertices
+                .OrderByDescending(v => v.Adjacentes.Count)
+                .ThenBy(v => v.Nome) // desempate por nome para consistência
+                .ToList();
+
+            // Passo 2: Atribui cores aos vértices
+            foreach (var vertice in verticesOrdenados)
+            {
+                // Encontra as cores já usadas pelos vizinhos
+                var coresVizinhos = new HashSet<int>();
+
+                foreach (var (vizinho, _) in vertice.Adjacentes)
+                {
+                    if (coloracao.ContainsKey(vizinho))
+                    {
+                        coresVizinhos.Add(coloracao[vizinho]);
+                    }
+                }
+
+                // Se o grafo é dirigido, também verifica antecessores
+                if (Dirigido)
+                {
+                    foreach (var outroVertice in Vertices)
+                    {
+                        if (coloracao.ContainsKey(outroVertice))
+                        {
+                            // Verifica se outroVertice aponta para o vértice atual
+                            if (outroVertice.Adjacentes.Any(adj => adj.vizinho == vertice))
+                            {
+                                coresVizinhos.Add(coloracao[outroVertice]);
+                            }
+                        }
+                    }
+                }
+
+                // Encontra a menor cor disponível (começando de 0)
+                int cor = 0;
+                while (coresVizinhos.Contains(cor))
+                {
+                    cor++;
+                }
+
+                // Atribui a cor ao vértice
+                coloracao[vertice] = cor;
+            }
+
+            return coloracao;
+        }
+
+        // Método auxiliar para obter informações sobre a coloração
+        public string ObterEstatisticasColoracao(Dictionary<Vertice, int> coloracao)
+        {
+            if (coloracao.Count == 0)
+                return "Nenhuma coloração disponível.";
+
+            var sb = new StringBuilder();
+            int numeroCores = coloracao.Values.Distinct().Count();
+
+            sb.AppendLine($"COLORAÇÃO DE WELSH-POWELL");
+            sb.AppendLine("".PadRight(50, '='));
+            sb.AppendLine($"Número cromático (cores usadas): {numeroCores}");
+            sb.AppendLine();
+
+            // Agrupa vértices por cor
+            var grupos = coloracao
+                .GroupBy(kv => kv.Value)
+                .OrderBy(g => g.Key);
+
+            foreach (var grupo in grupos)
+            {
+                var vertices = string.Join(", ", grupo.Select(kv => kv.Key.Nome).OrderBy(n => n));
+                sb.AppendLine($"Cor {grupo.Key}: {vertices}");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("Graus dos vértices (ordem de processamento):");
+            foreach (var v in coloracao.Keys.OrderByDescending(v => v.Adjacentes.Count).ThenBy(v => v.Nome))
+            {
+                sb.AppendLine($"  {v.Nome}: grau {v.Adjacentes.Count}, cor {coloracao[v]}");
+            }
+
+            return sb.ToString();
+        }
+
+        /*
          * ===== MATRIZES DE ADJACÊNCIA =====
          * A matriz ed adjacencia é uma representação do grafo onde uma matriz 2D é usada para indicar a presença e o peso das arestas entre os vértices.
          */

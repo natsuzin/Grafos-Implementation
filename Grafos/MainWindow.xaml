@@ -154,14 +154,17 @@
                     <Border Background="#F0FDF4" CornerRadius="8" Padding="10" Margin="0,0,10,0">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="🔬 Algoritmos:" Style="{StaticResource ModernLabel}" Margin="0,0,10,0"/>
-                            <Button x:Name="GerarArvoreButton" Content="🌳 Gerar Árvore PRIM" Click="GerarArvore_Click" 
-                                   Style="{StaticResource AlgorithmButton}"/>
+                            <Button x:Name="GerarArvoreButton" Content="🌳 PRIM" Click="GerarArvore_Click" 
+                                Style="{StaticResource AlgorithmButton}"/>
                             <Button Content="🔍 BFS" Click="ExecutarBFS_Click" 
-                                   Style="{StaticResource AlgorithmButton}"/>
+                                Style="{StaticResource AlgorithmButton}"/>
                             <Button Content="🎯 DFS" Click="ExecutarDFS_Click" 
-                                   Style="{StaticResource AlgorithmButton}"/>
+                                Style="{StaticResource AlgorithmButton}"/>
                             <Button Content="🧔‍♂️ Roy" Click="ExecutarRoy_Click" 
-                                   Style="{StaticResource AlgorithmButton}"/>
+                                Style="{StaticResource AlgorithmButton}"/>   
+                            <Button Content="🎨 Welsh-Powell" Click="ExecutarWelshPowell_Click" 
+                                Style="{StaticResource AlgorithmButton}"
+                                ToolTip="Coloração de vértices"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
