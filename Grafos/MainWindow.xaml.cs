@@ -4,7 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Collections.Generic;
-using Microsoft.VisualBasic; // para InputBox
+using Microsoft.VisualBasic;
 using System.Linq;
 using System;
 
@@ -12,105 +12,99 @@ namespace GrafoWPF
 {
     public partial class MainWindow : Window
     {
-        private Grafo grafo = new Grafo(); // instância do grafo
-        private Vertice verticeSelecionado = null; // para criar arestas
-        private List<UIElement> caminhosDestacados = new List<UIElement>(); // guarda referências aos elementos temporários (caminhos desenhados)
+        private Grafo grafo = new Grafo();
+        private Vertice verticeSelecionado = null;
+        private List<UIElement> caminhosDestacados = new List<UIElement>();
         private Dictionary<Vertice, int> coloracaoAtual = null;
 
         public MainWindow()
         {
             InitializeComponent();
-
         }
 
         private readonly Brush[] coresDisponiveis = new Brush[]
         {
-            Brushes.Red,
-            Brushes.Green,
-            Brushes.Blue,
-            Brushes.Yellow,
-            Brushes.Orange,
-            Brushes.Purple,
-            Brushes.Pink,
-            Brushes.Cyan,
-            Brushes.Lime,
-            Brushes.Magenta,
-            Brushes.Brown,
-            Brushes.Navy,
-            Brushes.Teal,
-            Brushes.Olive,
-            Brushes.Maroon,
-            Brushes.Aqua,
-            Brushes.Fuchsia,
-            Brushes.Silver,
-            Brushes.Gold,
-            Brushes.Coral
+            Brushes.Red, Brushes.Green, Brushes.Blue, Brushes.Yellow,
+            Brushes.Orange, Brushes.Purple, Brushes.Pink, Brushes.Cyan,
+            Brushes.Lime, Brushes.Magenta, Brushes.Brown, Brushes.Navy,
+            Brushes.Teal, Brushes.Olive, Brushes.Maroon, Brushes.Aqua,
+            Brushes.Fuchsia, Brushes.Silver, Brushes.Gold, Brushes.Coral
         };
 
-        // Adiciona mensagem ao log com timestamp
         private void AdicionarMensagem(string mensagem)
         {
-            // adiciona timestamp para identificar quando a mensagem foi gerada
             string timestamp = DateTime.Now.ToString("HH:mm:ss");
             string mensagemFormatada = $"[{timestamp}] {mensagem}";
-
             MensagensListBox.Items.Add(mensagemFormatada);
             MensagensListBox.ScrollIntoView(MensagensListBox.Items[MensagensListBox.Items.Count - 1]);
-
-            // limita o número de mensagens para performance
             if (MensagensListBox.Items.Count > 100)
-            {
                 MensagensListBox.Items.RemoveAt(0);
-            }
         }
 
-        // Redesenha todo o grafo no canvas
         private void DesenharGrafo()
         {
             GrafoCanvas.Children.Clear();
-
             if (grafo.Vertices.Count == 0) return;
 
             DirecaoCheckBox.IsEnabled = !(grafo.Vertices.Count > 1);
-
             AdicionarMensagem($"Lista de adjacência atualizada:\n{grafo.ListarAdjacencias()}");
 
-            // para evitar desenhar arestas duplicadas em grafos não-dirigidos
-            HashSet<(Vertice, Vertice)> desenhadas = new();
+            // Estrutura para controlar múltiplas arestas entre os mesmos vértices
+            var contagemArestas = new Dictionary<(Vertice, Vertice), int>();
 
-            // desenha arestas primeiro (para ficarem atrás dos vértices)
+            // Conta quantas arestas existem entre cada par de vértices
             foreach (var v in grafo.Vertices)
             {
                 foreach (var (vizinho, peso) in v.Adjacentes)
                 {
-                    if (!desenhadas.Contains((vizinho, v)))
-                    {
-                        DesenharAresta(v, vizinho, peso, Brushes.Black, 2, false);
-                        desenhadas.Add((v, vizinho));
-                    }
+                    var chave = (v, vizinho);
+                    if (!contagemArestas.ContainsKey(chave))
+                        contagemArestas[chave] = 0;
+                    contagemArestas[chave]++;
                 }
             }
 
-            // desenha vértices por último
+            // Desenha arestas primeiro
+            var arestasDesenhadas = new Dictionary<(Vertice, Vertice), int>();
+
             foreach (var v in grafo.Vertices)
             {
-                DesenharVertice(v);
+                for (int i = 0; i < v.Adjacentes.Count; i++)
+                {
+                    var (vizinho, peso) = v.Adjacentes[i];
+                    var chave = (v, vizinho);
+
+                    if (!arestasDesenhadas.ContainsKey(chave))
+                        arestasDesenhadas[chave] = 0;
+
+                    int indiceAresta = arestasDesenhadas[chave];
+                    int totalArestas = contagemArestas[chave];
+
+                    // Verifica se existe aresta reversa
+                    bool existeReversa = !grafo.Dirigido ? false :
+                        contagemArestas.ContainsKey((vizinho, v));
+
+                    DesenharAresta(v, vizinho, peso, Brushes.Black, 2, false,
+                                 indiceAresta, totalArestas, existeReversa);
+
+                    arestasDesenhadas[chave]++;
+                }
             }
+
+            // Desenha vértices por último
+            foreach (var v in grafo.Vertices)
+                DesenharVertice(v);
         }
 
-        // Desenha um vértice como círculo com nome
         private void DesenharVertice(Vertice vertice)
         {
-            // Determina a cor do vértice baseada na coloração atual
             Brush corVertice = Brushes.LightBlue;
-
             if (coloracaoAtual != null && coloracaoAtual.ContainsKey(vertice))
             {
                 int indiceCor = coloracaoAtual[vertice];
                 corVertice = coresDisponiveis[indiceCor % coresDisponiveis.Length];
             }
 
-            // desenha círculo
             var elipse = new Ellipse
             {
                 Width = 35,
@@ -124,7 +118,6 @@ namespace GrafoWPF
             Canvas.SetTop(elipse, vertice.Posicao.Y - 17.5);
             GrafoCanvas.Children.Add(elipse);
 
-            // desenha nome
             var txtNome = new TextBlock
             {
                 Text = vertice.Nome,
@@ -139,21 +132,65 @@ namespace GrafoWPF
             GrafoCanvas.Children.Add(txtNome);
         }
 
-        // gera nome único para novo vértice (V1, V2, ...)
         private string GerarNomeVertice(Grafo grafo)
         {
             int i = 1;
             while (grafo.Vertices.Any(v => v.Nome == $"V{i}"))
-            {
                 i++;
-            }
             return $"V{i}";
         }
 
-        // Desenha uma aresta entre dois vértices com peso e estilo
-        private void DesenharAresta(Vertice origem, Vertice destino, int peso, Brush cor, double espessura, bool caminhoTemporario = false)
+        // NOVO: Desenha aresta com suporte a laços e curvas
+        private void DesenharAresta(Vertice origem, Vertice destino, int peso, Brush cor,
+                                   double espessura, bool caminhoTemporario = false,
+                                   int indiceAresta = 0, int totalArestas = 1,
+                                   bool existeReversa = false)
         {
-            // linha
+            // LAÇO: quando origem e destino são o mesmo vértice
+            if (origem == destino)
+            {
+                DesenharLaco(origem, peso, cor, espessura, caminhoTemporario, indiceAresta);
+                return;
+            }
+
+            // Calcula curvatura se houver múltiplas arestas ou aresta reversa
+            double curvatura = 0;
+
+            if (grafo.Dirigido) { 
+                if (totalArestas > 1 || existeReversa)
+                {
+                    // Distribui as curvaturas
+                    double espacamento = 50; // espaço entre curvas
+                    if (totalArestas > 1)
+                    {
+                        // Múltiplas arestas na mesma direção
+                        curvatura = (indiceAresta - (totalArestas - 1) / 2.0) * espacamento;
+                    }
+                    else if (existeReversa)
+                    {
+                        // Apenas uma aresta em cada direção - curva para não sobrepor
+                        curvatura = 30;
+                    }
+                }
+            }
+
+            if (Math.Abs(curvatura) < 0.1)
+            {
+                // Aresta reta
+                DesenharArestaReta(origem, destino, peso, cor, espessura, caminhoTemporario);
+            }
+            else
+            {
+                // Aresta curva
+                DesenharArestaCurva(origem, destino, peso, cor, espessura,
+                                   caminhoTemporario, curvatura);
+            }
+        }
+
+        // Desenha aresta reta (código original)
+        private void DesenharArestaReta(Vertice origem, Vertice destino, int peso,
+                                       Brush cor, double espessura, bool caminhoTemporario)
+        {
             var linha = new Line
             {
                 X1 = origem.Posicao.X,
@@ -163,6 +200,7 @@ namespace GrafoWPF
                 Stroke = cor,
                 StrokeThickness = espessura
             };
+
             if (caminhoTemporario)
             {
                 linha.Tag = "temp";
@@ -170,13 +208,147 @@ namespace GrafoWPF
             }
             GrafoCanvas.Children.Add(linha);
 
-            // seta (se for dirigido)
+            if (grafo.Dirigido)
+                DesenharSetaReta(origem.Posicao, destino.Posicao, cor, caminhoTemporario);
+
+            DesenharPesoAresta(origem.Posicao, destino.Posicao, peso, cor,
+                             caminhoTemporario, 0);
+        }
+
+        // Desenha aresta curva usando Bézier
+        private void DesenharArestaCurva(Vertice origem, Vertice destino, int peso,
+                                        Brush cor, double espessura,
+                                        bool caminhoTemporario, double curvatura)
+        {
+            Point p1 = origem.Posicao;
+            Point p2 = destino.Posicao;
+
+            // Calcula ponto de controle para a curva
+            Point meio = new Point((p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2);
+
+            // Vetor perpendicular
+            double dx = p2.X - p1.X;
+            double dy = p2.Y - p1.Y;
+            double comprimento = Math.Sqrt(dx * dx + dy * dy);
+
+            double perpX = -dy / comprimento;
+            double perpY = dx / comprimento;
+
+            Point controle = new Point(
+                meio.X + perpX * curvatura,
+                meio.Y + perpY * curvatura
+            );
+
+            // Cria curva Bézier quadrática
+            var curva = new Path
+            {
+                Stroke = cor,
+                StrokeThickness = espessura,
+                Fill = null
+            };
+
+            var geometria = new PathGeometry();
+            var figura = new PathFigure { StartPoint = p1 };
+
+            var bezier = new QuadraticBezierSegment
+            {
+                Point1 = controle,
+                Point2 = p2
+            };
+
+            figura.Segments.Add(bezier);
+            geometria.Figures.Add(figura);
+            curva.Data = geometria;
+
+            if (caminhoTemporario)
+            {
+                curva.Tag = "temp";
+                caminhosDestacados.Add(curva);
+            }
+            GrafoCanvas.Children.Add(curva);
+
+            if (grafo.Dirigido)
+                DesenharSetaCurva(p1, controle, p2, cor, caminhoTemporario);
+
+            // Peso na curva
+            Point posicaoPeso = CalcularPontoBezier(p1, controle, p2, 0.5);
+            DesenharPesoAresta(posicaoPeso, posicaoPeso, peso, cor,
+                             caminhoTemporario, curvatura);
+        }
+
+        // Desenha laço (self-loop)
+        private void DesenharLaco(Vertice vertice, int peso, Brush cor,
+                                 double espessura, bool caminhoTemporario,
+                                 int indiceLaco = 0)
+        {
+            Point centro = vertice.Posicao;
+            double raio = 25 + (indiceLaco * 15); // Aumenta raio para múltiplos laços
+            double anguloInicio = 45; // Graus
+
+            // Converte para radianos
+            double radInicio = anguloInicio * Math.PI / 180;
+            double radFim = (anguloInicio + 270) * Math.PI / 180;
+
+            // Pontos de início e fim no círculo do vértice
+            Point pInicio = new Point(
+                centro.X + 17.5 * Math.Cos(radInicio),
+                centro.Y + 17.5 * Math.Sin(radInicio)
+            );
+
+            Point pFim = new Point(
+                centro.X + 17.5 * Math.Cos(radFim),
+                centro.Y + 17.5 * Math.Sin(radFim)
+            );
+
+            // Cria o laço usando arco
+            var laco = new Path
+            {
+                Stroke = cor,
+                StrokeThickness = espessura,
+                Fill = null
+            };
+
+            var geometria = new PathGeometry();
+            var figura = new PathFigure { StartPoint = pInicio };
+
+            // Usa arco para criar o laço
+            var arco = new ArcSegment
+            {
+                Point = pFim,
+                Size = new Size(raio, raio),
+                SweepDirection = SweepDirection.Clockwise,
+                IsLargeArc = true
+            };
+
+            figura.Segments.Add(arco);
+            geometria.Figures.Add(figura);
+            laco.Data = geometria;
+
+            if (caminhoTemporario)
+            {
+                laco.Tag = "temp";
+                caminhosDestacados.Add(laco);
+            }
+            GrafoCanvas.Children.Add(laco);
+
             if (grafo.Dirigido)
             {
-                DesenharArco(origem.Posicao, destino.Posicao, cor, caminhoTemporario);
+                // Seta no final do laço
+                double angulo = radFim - 0.3; // Ajuste para posicionar melhor a seta
+                Point pontoSeta = new Point(
+                    centro.X + 17.5 * Math.Cos(angulo),
+                    centro.Y + 17.5 * Math.Sin(angulo)
+                );
+
+                DesenharSetaLaco(pontoSeta, radFim, cor, caminhoTemporario);
             }
 
-            // peso
+            // Peso do laço
+            Point posicaoPeso = new Point(
+                centro.X + (raio + 10) * Math.Cos((radInicio + radFim) / 2),
+                centro.Y + (raio + 10) * Math.Sin((radInicio + radFim) / 2)
+            );
+
             var txtPeso = new TextBlock
             {
                 Text = peso.ToString(),
@@ -185,8 +357,8 @@ namespace GrafoWPF
                 Background = Brushes.White,
                 Padding = new Thickness(2)
             };
-            Canvas.SetLeft(txtPeso, (origem.Posicao.X + destino.Posicao.X) / 2 - 5);
-            Canvas.SetTop(txtPeso, (origem.Posicao.Y + destino.Posicao.Y) / 2 - 8);
+            Canvas.SetLeft(txtPeso, posicaoPeso.X - 8);
+            Canvas.SetTop(txtPeso, posicaoPeso.Y - 8);
 
             if (caminhoTemporario)
             {
@@ -196,13 +368,92 @@ namespace GrafoWPF
             GrafoCanvas.Children.Add(txtPeso);
         }
 
-        // Desenha uma seta para indicar direção do arco
-        private Polygon DesenharArco(Point origem, Point destino, Brush cor, bool caminhoTemporario = false)
+        // Desenha seta para curva
+        private void DesenharSetaCurva(Point inicio, Point controle, Point fim,
+                                       Brush cor, bool caminhoTemporario)
+        {
+            // Calcula direção no ponto final da curva
+            Point pontoAntes = CalcularPontoBezier(inicio, controle, fim, 0.9);
+
+            double dx = fim.X - pontoAntes.X;
+            double dy = fim.Y - pontoAntes.Y;
+            double comprimento = Math.Sqrt(dx * dx + dy * dy);
+
+            if (comprimento == 0) return;
+
+            dx /= comprimento;
+            dy /= comprimento;
+
+            double offset = 20;
+            Point pontoFinal = new Point(fim.X - dx * offset, fim.Y - dy * offset);
+            double tamanhoSeta = 8;
+
+            Point p1 = new Point(
+                pontoFinal.X - dy * tamanhoSeta - dx * tamanhoSeta,
+                pontoFinal.Y + dx * tamanhoSeta - dy * tamanhoSeta
+            );
+            Point p2 = new Point(
+                pontoFinal.X + dy * tamanhoSeta - dx * tamanhoSeta,
+                pontoFinal.Y - dx * tamanhoSeta - dy * tamanhoSeta
+            );
+
+            var seta = new Polygon
+            {
+                Points = new PointCollection { pontoFinal, p1, p2 },
+                Fill = cor,
+                Stroke = cor
+            };
+
+            if (caminhoTemporario)
+            {
+                seta.Tag = "temp";
+                caminhosDestacados.Add(seta);
+            }
+            GrafoCanvas.Children.Add(seta);
+        }
+
+        // Desenha seta para laço
+        private void DesenharSetaLaco(Point posicao, double angulo, Brush cor,
+                                     bool caminhoTemporario)
+        {
+            double tamanhoSeta = 8;
+
+            // Direção tangente ao círculo
+            double dx = Math.Cos(angulo);
+            double dy = Math.Sin(angulo);
+
+            Point p1 = new Point(
+                posicao.X - dy * tamanhoSeta - dx * tamanhoSeta,
+                posicao.Y + dx * tamanhoSeta - dy * tamanhoSeta
+            );
+            Point p2 = new Point(
+                posicao.X + dy * tamanhoSeta - dx * tamanhoSeta,
+                posicao.Y - dx * tamanhoSeta - dy * tamanhoSeta
+            );
+
+            var seta = new Polygon
+            {
+                Points = new PointCollection { posicao, p1, p2 },
+                Fill = cor,
+                Stroke = cor
+            };
+
+            if (caminhoTemporario)
+            {
+                seta.Tag = "temp";
+                caminhosDestacados.Add(seta);
+            }
+            GrafoCanvas.Children.Add(seta);
+        }
+
+        // Desenha seta reta (código original)
+        private void DesenharSetaReta(Point origem, Point destino, Brush cor,
+                                     bool caminhoTemporario)
         {
             double dx = destino.X - origem.X;
             double dy = destino.Y - origem.Y;
             double comprimento = Math.Sqrt(dx * dx + dy * dy);
-            if (comprimento == 0) return null;
+            if (comprimento == 0) return;
 
             dx /= comprimento;
             dy /= comprimento;
@@ -232,15 +483,58 @@ namespace GrafoWPF
                 seta.Tag = "temp";
                 caminhosDestacados.Add(seta);
             }
-
             GrafoCanvas.Children.Add(seta);
-            return seta;
         }
 
-        // verifica se o ponto 'clique' está perto da linha entre p1 e p2
+        // NOVO: Desenha peso da aresta
+        private void DesenharPesoAresta(Point p1, Point p2, int peso, Brush cor,
+                                       bool caminhoTemporario, double curvatura)
+        {
+            Point posicao;
+
+            if (Math.Abs(curvatura) < 0.1)
+            {
+                // Posição normal para aresta reta
+                posicao = new Point(
+                    (p1.X + p2.X) / 2,
+                    (p1.Y + p2.Y) / 2
+                );
+            }
+            else
+            {
+                // Para curvas, usa o ponto já calculado
+                posicao = p1;
+            }
+
+            var txtPeso = new TextBlock
+            {
+                Text = peso.ToString(),
+                Foreground = cor,
+                FontWeight = FontWeights.Bold,
+                Background = Brushes.White,
+                Padding = new Thickness(2)
+            };
+            Canvas.SetLeft(txtPeso, posicao.X - 5);
+            Canvas.SetTop(txtPeso, posicao.Y - 8);
+
+            if (caminhoTemporario)
+            {
+                txtPeso.Tag = "temp";
+                caminhosDestacados.Add(txtPeso);
+            }
+            GrafoCanvas.Children.Add(txtPeso);
+        }
+
+        // NOVO: Calcula ponto em curva Bézier quadrática
+        private Point CalcularPontoBezier(Point p0, Point p1, Point p2, double t)
+        {
+            double x = (1 - t) * (1 - t) * p0.X + 2 * (1 - t) * t * p1.X + t * t * p2.X;
+            double y = (1 - t) * (1 - t) * p0.Y + 2 * (1 - t) * t * p1.Y + t * t * p2.Y;
+            return new Point(x, y);
+        }
+
         private bool EstaPertoDaLinha(Point p1, Point p2, Point clique, double tolerancia)
         {
-            // cálculo da projeção do ponto na linha
             double dx = p2.X - p1.X;
             double dy = p2.Y - p1.Y;
             double comprimento = Math.Sqrt(dx * dx + dy * dy);
@@ -256,48 +550,41 @@ namespace GrafoWPF
             return distancia <= tolerancia;
         }
 
-        // Adiciona ou conecta vértices no canvas
         private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             Point pos = e.GetPosition(GrafoCanvas);
 
-            // checa se clicou em um vértice existente
             foreach (var v in grafo.Vertices)
             {
                 double dx = pos.X - v.Posicao.X;
                 double dy = pos.Y - v.Posicao.Y;
-                if (dx * dx + dy * dy <= 20 * 20) // clique dentro do círculo (aumentado para melhor usabilidade)
+                if (dx * dx + dy * dy <= 20 * 20)
                 {
                     if (verticeSelecionado == null)
                     {
-                        verticeSelecionado = v; // primeiro vértice selecionado
+                        verticeSelecionado = v;
                         AdicionarMensagem($"Vértice {v.Nome} selecionado para conexão");
+                        DesenharGrafo(); // Redesenha para mostrar borda destacada
                     }
                     else
                     {
-                        // se clicou no mesmo vértice, cancela seleção
-                        if (verticeSelecionado == v)
-                        {
-                            AdicionarMensagem($"Seleção do vértice {v.Nome} cancelada");
-                            verticeSelecionado = null;
-                            return;
-                        }
-
                         AdicionarMensagem($"Criando conexão entre {verticeSelecionado.Nome} e {v.Nome}");
 
-                        // se clicou em outro vértice, cria aresta
-                        string input = Interaction.InputBox("Digite o peso da aresta:", "Peso da aresta", "1"); // valor padrão 1
-                        if (!int.TryParse(input, out int peso)) peso = 1; // se inválido, usa 1
+                        string input = Interaction.InputBox("Digite o peso da aresta:", "Peso da aresta", "1");
+                        if (!int.TryParse(input, out int peso)) peso = 1;
 
-                        // verifica se já existe conexão
-                        bool jaExiste = verticeSelecionado.Adjacentes.Any(adj => adj.vizinho == v);
-                        if (!jaExiste)
+                        // MODIFICADO: Permite criar laços e múltiplas arestas
+                        verticeSelecionado.Adjacentes.Add((v, peso));
+
+                        if (verticeSelecionado == v)
                         {
-                            verticeSelecionado.Adjacentes.Add((v, peso)); // adiciona aresta
-
+                            // É um laço
+                            AdicionarMensagem($"Laço criado em {v.Nome} com peso {peso}");
+                        }
+                        else
+                        {
                             string nomeA = $"{verticeSelecionado.Nome}-{v.Nome}";
 
-                            // se não for dirigido, adiciona a conexão inversa
                             if (!grafo.Dirigido)
                             {
                                 v.Adjacentes.Add((verticeSelecionado, peso));
@@ -307,14 +594,7 @@ namespace GrafoWPF
                             {
                                 AdicionarMensagem($"Arco {nomeA} criado com peso {peso}");
                             }
-                            
                         }
-                        else
-                        {
-                            string nomeAresta = $"{verticeSelecionado.Nome}-{v.Nome}";
-                            AdicionarMensagem($"Essa conexão já existe!");
-                        }
-
 
                         DesenharGrafo();
                         verticeSelecionado = null;
@@ -323,7 +603,6 @@ namespace GrafoWPF
                 }
             }
 
-            // se chegou aqui e há vértice selecionado, cancela seleção
             if (verticeSelecionado != null)
             {
                 verticeSelecionado = null;
@@ -332,7 +611,6 @@ namespace GrafoWPF
                 return;
             }
 
-            // cria novo vértice
             var novoVertice = new Vertice
             {
                 Nome = GerarNomeVertice(grafo),
@@ -341,17 +619,13 @@ namespace GrafoWPF
 
             AdicionarMensagem($"Novo vértice {novoVertice.Nome} criado");
             grafo.Vertices.Add(novoVertice);
-
             DesenharGrafo();
         }
 
-
-        // Remove vértice ou aresta com clique direito
         private void Canvas_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
             Point pos = e.GetPosition(GrafoCanvas);
 
-            // cancela seleção
             if (verticeSelecionado != null)
             {
                 verticeSelecionado = null;
@@ -359,16 +633,13 @@ namespace GrafoWPF
                 AdicionarMensagem("Seleção cancelada");
             }
 
-            // remove vértice se clicou nele
             foreach (var v in grafo.Vertices.ToList())
             {
-                // ajuste para clique dentro do círculo
                 double dx = pos.X - v.Posicao.X;
                 double dy = pos.Y - v.Posicao.Y;
 
                 if (dx * dx + dy * dy <= 20 * 20)
                 {
-                    // remove todas as conexões desse vértice
                     foreach (var v2 in grafo.Vertices)
                         v2.Adjacentes.RemoveAll(a => a.vizinho == v);
 
@@ -379,18 +650,34 @@ namespace GrafoWPF
                 }
             }
 
-            // remove aresta se clicou perto da linha
             foreach (var v in grafo.Vertices)
             {
-                // itera para trás para evitar problemas ao remover
                 for (int i = v.Adjacentes.Count - 1; i >= 0; i--)
                 {
                     var viz = v.Adjacentes[i];
-                    // checa se o clique está perto da linha entre v e seu vizinho
-                    if (EstaPertoDaLinha(v.Posicao, viz.vizinho.Posicao, pos, 8))
+
+                    // MODIFICADO: Melhor detecção para laços
+                    if (v == viz.vizinho)
+                    {
+                        // É um laço - verifica distância do centro
+                        double distCentro = Math.Sqrt(
+                            (pos.X - v.Posicao.X) * (pos.X - v.Posicao.X) +
+                            (pos.Y - v.Posicao.Y) * (pos.Y - v.Posicao.Y)
+                        );
+
+                        if (distCentro > 25 && distCentro < 50)
+                        {
+                            v.Adjacentes.RemoveAt(i);
+                            AdicionarMensagem($"Laço removido de {v.Nome}");
+                            DesenharGrafo();
+                            return;
+                        }
+                    }
+                    else if (EstaPertoDaLinha(v.Posicao, viz.vizinho.Posicao, pos, 10))
                     {
                         v.Adjacentes.RemoveAt(i);
                         string nomeA = $"{v.Nome}-{viz.vizinho.Nome}";
+
                         if (!grafo.Dirigido)
                         {
                             viz.vizinho.Adjacentes.RemoveAll(a => a.vizinho == v);
@@ -406,10 +693,9 @@ namespace GrafoWPF
                     }
                 }
             }
-
         }
 
-        // Verifica se dois vértices são adjacentes
+        // [Resto dos métodos permanecem iguais]
         private void VerificarAdjacencia_Click(object sender, RoutedEventArgs e)
         {
             string v1 = Vertice1TextBox.Text.Trim();
@@ -434,7 +720,6 @@ namespace GrafoWPF
             AdicionarMensagem(adj ? $"{v1} e {v2} SÃO adjacentes." : $"{v1} e {v2} NÃO são adjacentes.");
         }
 
-        // Gera árvore geradora mínima (Prim) ou árvore de caminhos mínimos (Dijkstra)
         private void GerarArvore_Click(object sender, RoutedEventArgs e)
         {
             if (grafo.Vertices.Count == 0)
@@ -443,10 +728,8 @@ namespace GrafoWPF
                 return;
             }
 
-            // se grafo não dirigido
             if (!grafo.Dirigido)
             {
-                // usa Prim
                 var mst = grafo.GerarArvoreGeradoraMinimaPrim();
                 if (mst.Count == 0)
                 {
@@ -455,11 +738,9 @@ namespace GrafoWPF
                 }
 
                 int pesoTotal = 0;
-
-                // desenha arestas da árvore em verde
                 foreach (var aresta in mst)
                 {
-                    DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Green, 4, true);
+                    DesenharArestaReta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Green, 4, true);
                     pesoTotal += aresta.Peso;
                 }
 
@@ -467,7 +748,6 @@ namespace GrafoWPF
             }
             else
             {
-                // se grafo dirigido, usa Dijkstra
                 var raiz = EscolherVerticeValido();
                 if (raiz == null)
                 {
@@ -484,17 +764,15 @@ namespace GrafoWPF
                 }
 
                 foreach (var aresta in arvore)
-                    DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Purple, 4, true);
+                    DesenharArestaReta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Purple, 4, true);
 
                 if (inalcançaveis.Count > 0)
                     AdicionarMensagem($"Alguns vértices não foram alcançáveis a partir de {raiz.Nome}: {string.Join(", ", inalcançaveis.Select(v => v.Nome))}");
                 else
                     AdicionarMensagem($"Árvore de Caminhos Mínimos (Dijkstra) de {raiz.Nome} gerada com sucesso!");
-
             }
         }
 
-        // Gera e exibe matriz de adjacência
         private void MatrizAdjacencia_Click(object sender, RoutedEventArgs e)
         {
             if (grafo.Vertices.Count == 0)
@@ -509,7 +787,6 @@ namespace GrafoWPF
             sb.AppendLine("MATRIZ DE ADJACÊNCIA");
             sb.AppendLine("".PadRight(50, '='));
 
-            // cabeçalho com nomes dos vértices
             sb.Append("     ");
             foreach (var v in grafo.Vertices)
             {
@@ -517,7 +794,6 @@ namespace GrafoWPF
             }
             sb.AppendLine();
 
-            // linhas da matriz
             for (int i = 0; i < grafo.Vertices.Count; i++)
             {
                 sb.Append($"{grafo.Vertices[i].Nome,3}: ");
@@ -531,7 +807,6 @@ namespace GrafoWPF
             AdicionarMensagem(sb.ToString());
         }
 
-        // Gera e exibe matriz de incidência
         private void MatrizIncidencia_Click(object sender, RoutedEventArgs e)
         {
             if (grafo.Vertices.Count == 0)
@@ -550,7 +825,6 @@ namespace GrafoWPF
 
             int numArestas = matriz.GetLength(1);
 
-            // cabeçalho com números das arestas
             sb.Append("     ");
             foreach (var aresta in arestas)
             {
@@ -558,15 +832,14 @@ namespace GrafoWPF
             }
             sb.AppendLine();
 
-            // linhas da matriz
             for (int i = 0; i < grafo.Vertices.Count; i++)
             {
                 sb.Append($"{grafo.Vertices[i].Nome,3}: ");
                 for (int j = 0; j < numArestas; j++)
                 {
                     var resultado = $"  {matriz[i, j]} ";
-                    if (matriz[i, j] >= 0) resultado += " "; // para alinhar números positivos
-                        sb.Append(resultado);
+                    if (matriz[i, j] >= 0) resultado += " ";
+                    sb.Append(resultado);
                 }
                 sb.AppendLine();
             }
@@ -574,8 +847,6 @@ namespace GrafoWPF
             AdicionarMensagem(sb.ToString());
         }
 
-
-        // Executa busca em largura (BFS) e destaca a árvore resultante
         private void ExecutarBFS_Click(object sender, RoutedEventArgs e)
         {
             if (grafo.Vertices.Count == 0)
@@ -584,7 +855,6 @@ namespace GrafoWPF
                 return;
             }
 
-            // Pergunta qual vértice deve ser a origem da busca
             string input = Interaction.InputBox("Digite o nome do vértice inicial para BFS:", "Vértice inicial", "");
             if (string.IsNullOrWhiteSpace(input))
             {
@@ -592,7 +862,6 @@ namespace GrafoWPF
                 return;
             }
 
-            // Procura o vértice especificado
             var origem = grafo.Vertices.FirstOrDefault(v => v.Nome.Equals(input.Trim(), StringComparison.OrdinalIgnoreCase));
             if (origem == null)
             {
@@ -610,13 +879,12 @@ namespace GrafoWPF
 
             foreach (var aresta in arvore)
             {
-                DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Orange, 4, true);
+                DesenharArestaReta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Orange, 4, true);
             }
 
             AdicionarMensagem($"Busca em Largura (BFS) executada a partir de {origem.Nome}.");
         }
 
-        // Executa busca em profundidade (DFS) e destaca a árvore resultante
         private void ExecutarDFS_Click(object sender, RoutedEventArgs e)
         {
             if (grafo.Vertices.Count == 0)
@@ -625,7 +893,6 @@ namespace GrafoWPF
                 return;
             }
 
-            // Pergunta qual vértice deve ser a origem da busca
             string input = Interaction.InputBox("Digite o nome do vértice inicial para DFS:", "Vértice inicial", "");
             if (string.IsNullOrWhiteSpace(input))
             {
@@ -633,7 +900,6 @@ namespace GrafoWPF
                 return;
             }
 
-            // Procura o vértice especificado
             var origem = grafo.Vertices.FirstOrDefault(v => v.Nome.Equals(input.Trim(), StringComparison.OrdinalIgnoreCase));
             if (origem == null)
             {
@@ -651,13 +917,12 @@ namespace GrafoWPF
 
             foreach (var aresta in arvore)
             {
-                DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Blue, 4, true);
+                DesenharArestaReta(aresta.Origem, aresta.Destino, aresta.Peso, Brushes.Blue, 4, true);
             }
 
             AdicionarMensagem($"Busca em Profundidade (DFS) executada a partir de {origem.Nome}.");
         }
 
-        // Executa Algoritmo de Roy
         private void ExecutarRoy_Click(object sender, RoutedEventArgs e)
         {
             var totalVertices = grafo.Vertices.Count;
@@ -669,13 +934,11 @@ namespace GrafoWPF
 
             var resultado = grafo.Roy();
 
-            // Exibe mensagem sobre conectividade geral do grafo
             if (!string.IsNullOrWhiteSpace(resultado.mensagem))
             {
                 AdicionarMensagem(resultado.mensagem);
             }
 
-            // Se não houver componentes, significa que há apenas vértices isolados
             if (resultado.componentes.Count == 0)
             {
                 if (string.IsNullOrWhiteSpace(resultado.mensagem))
@@ -685,16 +948,13 @@ namespace GrafoWPF
                 return;
             }
 
-            // Cores disponíveis para destacar componentes diferentes
             var cores = new List<Brush> { Brushes.Red, Brushes.Pink };
             int corIndex = 0;
 
-            // Processa cada componente encontrada
             for (int i = 0; i < resultado.componentes.Count; i++)
             {
                 var componente = resultado.componentes[i];
 
-                // Identifica os vértices únicos da componente
                 var verticesDaComponente = new HashSet<string>();
                 foreach (var aresta in componente)
                 {
@@ -706,17 +966,15 @@ namespace GrafoWPF
                 AdicionarMensagem($"Componente {tipoComponente} {i + 1}: " +
                                  $"Vértices [{string.Join(", ", verticesDaComponente.OrderBy(v => v))}]");
 
-                // Desenha as arestas da componente com cor específica
                 Brush corAtual = cores[corIndex % cores.Count];
                 foreach (var aresta in componente)
                 {
-                    DesenharAresta(aresta.Origem, aresta.Destino, aresta.Peso, corAtual, 4, true);
+                    DesenharArestaReta(aresta.Origem, aresta.Destino, aresta.Peso, corAtual, 4, true);
                 }
 
                 corIndex++;
             }
 
-            // Resumo final
             string resumo = grafo.Dirigido ?
                 $"Análise de Roy concluída: {resultado.componentes.Count} componente(s) fortemente conexa(s) encontrada(s)" :
                 $"Análise de Roy concluída: {resultado.componentes.Count} componente(s) conexa(s) encontrada(s)";
@@ -738,7 +996,6 @@ namespace GrafoWPF
                 return;
             }
 
-            // Executa o algoritmo de Welsh-Powell
             coloracaoAtual = grafo.ColoracaoWelshPowell();
 
             if (coloracaoAtual.Count == 0)
@@ -747,21 +1004,19 @@ namespace GrafoWPF
                 return;
             }
 
-            // Redesenha o grafo com as cores
             DesenharGrafo();
 
-            // Exibe estatísticas da coloração
             string estatisticas = grafo.ObterEstatisticasColoracao(coloracaoAtual);
             AdicionarMensagem(estatisticas);
 
             int numeroCores = coloracaoAtual.Values.Distinct().Count();
             AdicionarMensagem($"✓ Coloração aplicada com sucesso! Número cromático: {numeroCores}");
         }
+
         private void LimparCaminhos_Click(object sender, RoutedEventArgs e)
         {
             int removed = 0;
 
-            // tenta remover pelos elementos que guardamos
             foreach (var elem in caminhosDestacados.ToList())
             {
                 if (GrafoCanvas.Children.Contains(elem))
@@ -772,7 +1027,6 @@ namespace GrafoWPF
             }
             caminhosDestacados.Clear();
 
-            // fallback: remove qualquer filho marcado com Tag == "temp"
             for (int i = GrafoCanvas.Children.Count - 1; i >= 0; i--)
             {
                 if (GrafoCanvas.Children[i] is FrameworkElement fe && fe.Tag != null && fe.Tag.ToString() == "temp")
@@ -782,7 +1036,6 @@ namespace GrafoWPF
                 }
             }
 
-            // Limpa a coloração
             if (coloracaoAtual != null)
             {
                 coloracaoAtual = null;
@@ -793,37 +1046,34 @@ namespace GrafoWPF
             AdicionarMensagem($"Limpeza de caminhos executada.");
         }
 
-        // Retorna o primeiro vértice que tenha pelo menos uma aresta de saída
         private Vertice EscolherVerticeValido()
         {
             foreach (var v in grafo.Vertices)
             {
                 if (v.Adjacentes.Count > 0)
-                    return v; // primeiro vértice que pode percorrer
+                    return v;
             }
-            return null; // nenhum vértice válido encontrado
+            return null;
         }
 
-        // Limpa o log de mensagens
         private void LimparLog_Click(object sender, RoutedEventArgs e)
         {
             MensagensListBox.Items.Clear();
             AdicionarMensagem("Log de atividades limpo");
         }
 
-        // Limpa todo o grafo, vértices, arestas e log
         private void LimparGrafo_Click(object sender, RoutedEventArgs e)
         {
-            grafo.Vertices.Clear();      // Limpa todos os vértices e, por consequência, as arestas
-            verticeSelecionado = null;   // Reseta seleção
-            GrafoCanvas.Children.Clear(); // Limpa visual do canvas
-            MensagensListBox.Items.Clear(); // Limpa o log
-            DirecaoCheckBox.IsEnabled = true; // Reabilita checkbox de direção 
+            grafo.Vertices.Clear();
+            verticeSelecionado = null;
+            GrafoCanvas.Children.Clear();
+            MensagensListBox.Items.Clear();
+            DirecaoCheckBox.IsEnabled = true;
+            coloracaoAtual = null;
 
             AdicionarMensagem("Grafo completamente limpo!");
         }
 
-        // Alterna para grafo dirigido
         private void Dirigido_Checked(object sender, RoutedEventArgs e)
         {
             grafo.Dirigido = true;
@@ -832,7 +1082,6 @@ namespace GrafoWPF
             DesenharGrafo();
         }
 
-        // Alterna para grafo não-dirigido
         private void Dirigido_Unchecked(object sender, RoutedEventArgs e)
         {
             grafo.Dirigido = false;
@@ -840,6 +1089,5 @@ namespace GrafoWPF
             GerarArvoreButton.Content = "🌳 PRIM";
             DesenharGrafo();
         }
-
     }
 }
